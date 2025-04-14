@@ -14,4 +14,4 @@ app.include_router(routes.router)
 # root test endpoint
 @app.get("/")
 def read_root():
-    return {"message": "Welcome to RAG Chatbot API"}
+    return {"message": "RAG Chatbot API"}

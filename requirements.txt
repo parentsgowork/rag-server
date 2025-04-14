@@ -51,6 +51,8 @@ olefile==0.47
 openai==1.72.0
 orjson==3.10.16
 packaging==24.2
+pinecone==6.0.2
+pinecone-plugin-interface==0.0.7
 propcache==0.3.1
 psutil==7.0.0
 pycparser==2.22
