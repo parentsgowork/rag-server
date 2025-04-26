@@ -11,8 +11,8 @@ class Settings(BaseSettings):
     OPENAI_API_KEY: str
     PINECONE_API_KEY: str
     PINECONE_ENV: str
-    PINECONE_INDEX_NAME: str
-    DATA_PATH:str
+    PINECONE_INDEX_NAME_REEMPLOYMENT: str
+    DATA_PATH_REEMPLOYMENT_ANALYSIS: str
 
     class Config:
         env_file = ".env"
