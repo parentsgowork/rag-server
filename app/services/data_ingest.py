@@ -46,7 +46,7 @@ def load_clean_dataframe(file_path):
 
 def text_to_vector(text):
     if not text.strip():
-        print("⚠️ 빈 문자열 발견:", text)
+        print("빈 문자열 발견:", text)
         return None
     try:
         response = openai.embeddings.create(
@@ -61,8 +61,8 @@ def text_to_vector(text):
 # 업로드 함수
 def ingest_data(file_path):
     df = load_clean_dataframe(file_path)
-    print("📋 테이블 열 이름:", df.columns.tolist())
-    print("🧾 테이블 처음 3행:\n", df.head(3))
+    print("테이블 열 이름:", df.columns.tolist())
+    print("테이블 처음 3행:\n", df.head(3))
 
     vectors = []
     for i, row in df.iterrows():
@@ -79,12 +79,12 @@ def ingest_data(file_path):
     print(f"✅ 생성된 벡터 개수: {len(vectors)}")
 
     if not vectors:
-        print("⚠️ 업로드할 벡터가 없습니다. 종료합니다.")
+        print("❌ 업로드할 벡터가 없습니다. 종료합니다.")
         return
 
     batch_size = 100
     for i in range(0, len(vectors), batch_size):
-        print(f"📤 업로드 중... {i} ~ {i + batch_size}개")
+        print(f"업로드 중... {i} ~ {i + batch_size}개")
         index.upsert(vectors=vectors[i:i + batch_size], namespace="default")
 
     print("🎉 모든 데이터 업로드 완료!")
