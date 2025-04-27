@@ -74,6 +74,7 @@ def ingest_data(file_path):
             continue
 
         metadata = {str(col): str(val) for col, val in zip(df.columns, row)}
+        metadata["text"] = text
         vectors.append((str(i), vector, metadata))
 
     print(f"✅ 생성된 벡터 개수: {len(vectors)}")
