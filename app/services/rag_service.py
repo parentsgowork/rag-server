@@ -1,143 +1,121 @@
-from langchain.chains import RetrievalQA
-from langchain_core.prompts import PromptTemplate
+from datetime import datetime
+from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from langchain_pinecone import PineconeVectorStore
-from langchain_openai import OpenAIEmbeddings, ChatOpenAI
 from pinecone import Pinecone
-
 from app.core.config import settings
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.output_parsers import StrOutputParser
+from langchain.chains.combine_documents import create_stuff_documents_chain
+from langchain.chains import create_retrieval_chain
 
-# 설정값
-OPENAI_API_KEY = settings.OPENAI_API_KEY
-PINECONE_API_KEY = settings.PINECONE_API_KEY
-PINECONE_ENV = settings.PINECONE_ENV
-PINECONE_INDEX_NAME = settings.PINECONE_INDEX_NAME_REEMPLOYMENT
+# 오늘 날짜
+current_date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+print(f"현재 날짜 및 시간: {current_date}")
 
-# Pinecone 연결
-pc = Pinecone(api_key=PINECONE_API_KEY, environment=PINECONE_ENV)
-index = pc.Index(PINECONE_INDEX_NAME)
-embeddings = OpenAIEmbeddings(openai_api_key=OPENAI_API_KEY)
-vectorstore = PineconeVectorStore(
-    index=index,
-    embedding=embeddings,
-    text_key="text"
-)
+# 벡터스토어 준비
+def get_vectorstore():
+    pc = Pinecone(api_key=settings.PINECONE_API_KEY, environment=settings.PINECONE_ENV)
+    index = pc.Index(settings.PINECONE_INDEX_NAME_REEMPLOYMENT)
+    embeddings = OpenAIEmbeddings(openai_api_key=settings.OPENAI_API_KEY)
+    return PineconeVectorStore(index=index, embedding=embeddings, text_key="text")
 
-# LLM 연결
-llm = ChatOpenAI(
-    openai_api_key=OPENAI_API_KEY,
-    model="gpt-4-1106-preview"
-)
+# LLM 준비
+def get_llm(model="gpt-4o"):
+    return ChatOpenAI(openai_api_key=settings.OPENAI_API_KEY, model=model)
 
-# Prompt 템플릿
-prompt_template = PromptTemplate.from_template("""
-당신은 제공된 context(문서)만을 사용하여 객관적인 수치 정보를 요약하는 재취업 분석 AI입니다.
+# 1단계: 업종 + 성별 추출
+def extract_field_and_gender(question: str):
+    llm = get_llm()
 
-반드시 다음 정보를 찾아야 합니다:
-- 55세 이상 전체 근로자 수 (명)
-- 55세 이상 여성 근로자 수 (명)
-- 55세 이상 남성 근로자 수 (명)
-- 전체 근로자 수 대비 55세 이상 여성 비율 (%)
-- 전체 근로자 수 대비 55세 이상 남성 비율 (%)
+    extraction_prompt = ChatPromptTemplate.from_messages([
+        ("system", 
+        "사용자의 질문에서 재취업 관련 업종(예: 정보통신업, 부동산업, 제조업 등)과 성별(남성 또는 여성)을 JSON 형태로 추출하세요. "
+        "예시: {{\"field\": \"부동산업\", \"gender\": \"여성\"}}. "
+        "업종이 명확하지 않으면 '일반', 성별이 명확하지 않으면 '모름'으로 표시하세요."
+        # ✅ 여기에 중괄호 { } 를 **두 개** 감싸야 해
+        ),
+        ("human", "{input}")
+    ])
 
-**계산 방법**:
-- 여성 비율 = (55세 이상 여성 근로자 수 / 전체 근로자 수) * 100
-- 남성 비율 = (55세 이상 남성 근로자 수 / 전체 근로자 수) * 100
+    chain = extraction_prompt | llm | StrOutputParser()
+    extraction_result = chain.invoke({"input": question})
+    print(f"🎯 추출 결과: {extraction_result}")
 
-규칙:
-- 문서(context)에 없는 정보는 "알 수 없음"으로 답하세요.
-- 감성적인 표현 없이, 수치 기반으로 간결히 답하세요.
-- 2~3줄 이내로 요약하세요.
+    try:
+        result_dict = eval(extraction_result)
+        field = result_dict.get("field", "일반")
+        gender = result_dict.get("gender", "모름")
+    except:
+        field = "일반"
+        gender = "모름"
 
-<context>
-{context}
-</context>
+    return field.strip(), gender.strip()
 
-질문: {question}
+# 2단계: 쿼리 최적화
+def reformat_query(field: str, gender: str):
+    return f"{field} 업종의 55세 이상 {gender} 근로자 수는 몇 명인가요?"
 
-답변 형식 예시:
-- 업종별: 부동산업
-- 55세 이상 전체 근로자: 27503명
-- 55세 이상 여성 근로자: 11022명
-- 55세 이상 남성 근로자: 16481명
-- 전체 근로자 대비 55세 이상 여성 비율: 21.7%
-- 전체 근로자 대비 55세 이상 남성 비율: 27.4%
-""")
 
-# 유저 프로필 추출
-def extract_user_profile(text: str) -> dict:
-    field_candidates = ["부동산업", "부동산", "농업", "제조업", "서비스업", "건설업", "정보통신업", "금융업", "교육서비스업"]
-    gender_candidates = {"여성": "여성", "여자": "여성", "남성": "남성", "남자": "남성"}
+# 3단계: 벡터 검색 + 요약
+def search_and_summarize(field: str, gender: str, optimized_query: str):
+    llm = get_llm()
+    vectorstore = get_vectorstore()
 
-    detected_field = None
-    for f in field_candidates:
-        if f in text:
-            detected_field = f
-            break
+    # ✅ retriever에 filter 설정
+    retriever = vectorstore.as_retriever(search_kwargs={
+        "k": 5,
+        "filter": {
+            "field": field,
+            "age_group": "55세 이상"
+        }
+    })
 
-    detected_gender = None
-    for key, value in gender_candidates.items():
-        if key in text:
-            detected_gender = value
-            break
-
-    return {
-        "field": detected_field,
-        "gender": detected_gender or "여성"  # 기본 여성
-    }
-
-# 재취업 분석 메인 함수
-def analyze_reemployment_possibility(question: str) -> dict:
-    profile = extract_user_profile(question)
-    field = profile.get("field", "")
-    gender = profile.get("gender", "여성")
-
-    # 필터 설정
-    filter_query = {}
-    if field:
-        filter_query["구분별(2)"] = {"$contains": field}
-
-    # 1차 필터 검색
-    retriever = vectorstore.as_retriever(search_kwargs={"k": 1, "filter": filter_query or None})
-    chain = RetrievalQA.from_chain_type(
-        llm=llm,
-        retriever=retriever,
-        chain_type="stuff",
-        chain_type_kwargs={"prompt": prompt_template},
-        return_source_documents=True,
-        input_key="question"
+    system_prompt = (
+        f"오늘 날짜는 {current_date}입니다.\n"
+        f"사용자가 입력한 성별은 {gender}입니다.\n\n"
+        "context(문서)로부터 다음 정보를 수치 기반으로 요약하세요:\n"
+        "- 업종명\n"
+        "- 55세 이상 전체 근로자 수\n"
+        "- 55세 이상 남성/여성 근로자 수\n"
+        "- 전체 근로자 대비 해당 성별 비율(%)\n"
+        "- 업종의 비전\n"
+        "- 재취업 가능성\n"
+        "- 조언 한 마디\n\n"
+        "**답변은 반드시 3줄 이내로 작성하십시오.**\n"
+        "데이터가 없으면 '알 수 없음'으로 표시하세요."
     )
-    response = chain.invoke({"question": question})
 
-    # 2차 fallback (필터 없이)
-    if not response.get("source_documents"):
-        retriever_fallback = vectorstore.as_retriever(search_kwargs={"k": 1})
-        chain_fallback = RetrievalQA.from_chain_type(
-            llm=llm,
-            retriever=retriever_fallback,
-            chain_type="stuff",
-            chain_type_kwargs={"prompt": prompt_template},
-            return_source_documents=True,
-            input_key="question"
-        )
-        response = chain_fallback.invoke({"question": question})
+    qa_prompt = ChatPromptTemplate.from_messages([
+        ("system", system_prompt),
+        ("human", "{input}"),
+        ("system", "참고 문서:\n{context}")
+    ])
+
+    document_chain = create_stuff_documents_chain(
+        llm=llm,
+        prompt=qa_prompt,
+        output_parser=StrOutputParser()
+    )
+
+    retriever_chain = create_retrieval_chain(retriever, document_chain)
+
+    result = retriever_chain.invoke({
+        "input": optimized_query
+    })
+
+    if isinstance(result, dict):
+        return result.get("answer", "요약 결과를 가져올 수 없습니다.")
+    else:
+        return str(result)
+
+
+
+# 최종 API
+def get_final_reemployment_analysis(user_question: str):
+    field, gender = extract_field_and_gender(user_question)
+    optimized_query = reformat_query(field, gender)
+    summary = search_and_summarize(field, gender, optimized_query)
 
     return {
-        "answer": response["result"],
-        "sources": [doc.metadata for doc in response["source_documents"]],
-        "field": field,
-        "gender": gender
-    }
-
-# 최종 API 포맷팅
-def get_final_reemployment_analysis(question: str) -> dict:
-    result = analyze_reemployment_possibility(question)
-    answer_text = result["answer"]
-    field = result["field"] or "해당 업종"
-    gender = result["gender"] or "여성"
-
-    final_message = f"고객님과 비슷한 {field} 분야 {gender} 종사자의 재취업 정보입니다:\n\n{answer_text}"
-
-    return {
-        "message": final_message,
-        "sources": result["sources"]
+        "answer": summary
     }
