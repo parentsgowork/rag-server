@@ -1,62 +1,121 @@
-from langchain.chains import RetrievalQA
-from langchain_pinecone import Pinecone as VectorstorePinecone
-from langchain_openai import OpenAIEmbeddings, ChatOpenAI
-from pinecone import Pinecone  # pinecone 모듈이 아니라 클래스
-
+from datetime import datetime
+from langchain_openai import ChatOpenAI, OpenAIEmbeddings
+from langchain_pinecone import PineconeVectorStore
+from pinecone import Pinecone
 from app.core.config import settings
-from app.utils.profile_extractor import extract_user_profile
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.output_parsers import StrOutputParser
+from langchain.chains.combine_documents import create_stuff_documents_chain
+from langchain.chains import create_retrieval_chain
 
-# 환경 변수 세팅
-OPENAI_API_KEY = settings.OPENAI_API_KEY
-PINECONE_API_KEY = settings.PINECONE_API_KEY
-PINECONE_ENV = settings.PINECONE_ENV
-PINECONE_INDEX_NAME = settings.PINECONE_INDEX_NAME_REEMPLOYMENT
+# 오늘 날짜
+current_date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+print(f"현재 날짜 및 시간: {current_date}")
 
-# Pinecone 클라이언트 생성
-pc = Pinecone(
-    api_key=PINECONE_API_KEY,
-    environment=PINECONE_ENV
-)
+# 벡터스토어 준비
+def get_vectorstore():
+    pc = Pinecone(api_key=settings.PINECONE_API_KEY, environment=settings.PINECONE_ENV)
+    index = pc.Index(settings.PINECONE_INDEX_NAME_REEMPLOYMENT)
+    embeddings = OpenAIEmbeddings(openai_api_key=settings.OPENAI_API_KEY)
+    return PineconeVectorStore(index=index, embedding=embeddings, text_key="text")
+
+# LLM 준비
+def get_llm(model="gpt-4o"):
+    return ChatOpenAI(openai_api_key=settings.OPENAI_API_KEY, model=model)
+
+# 1단계: 업종 + 성별 추출
+def extract_field_and_gender(question: str):
+    llm = get_llm()
+
+    extraction_prompt = ChatPromptTemplate.from_messages([
+        ("system", 
+        "사용자의 질문에서 재취업 관련 업종(예: 정보통신업, 부동산업, 제조업 등)과 성별(남성 또는 여성)을 JSON 형태로 추출하세요. "
+        "예시: {{\"field\": \"부동산업\", \"gender\": \"여성\"}}. "
+        "업종이 명확하지 않으면 '일반', 성별이 명확하지 않으면 '모름'으로 표시하세요."
+        # ✅ 여기에 중괄호 { } 를 **두 개** 감싸야 해
+        ),
+        ("human", "{input}")
+    ])
+
+    chain = extraction_prompt | llm | StrOutputParser()
+    extraction_result = chain.invoke({"input": question})
+    print(f"🎯 추출 결과: {extraction_result}")
+
+    try:
+        result_dict = eval(extraction_result)
+        field = result_dict.get("field", "일반")
+        gender = result_dict.get("gender", "모름")
+    except:
+        field = "일반"
+        gender = "모름"
+
+    return field.strip(), gender.strip()
+
+# 2단계: 쿼리 최적화
+def reformat_query(field: str, gender: str):
+    return f"{field} 업종의 55세 이상 {gender} 근로자 수는 몇 명인가요?"
 
 
-# 임베딩 모델
-embeddings = OpenAIEmbeddings(openai_api_key=OPENAI_API_KEY)
+# 3단계: 벡터 검색 + 요약
+def search_and_summarize(field: str, gender: str, optimized_query: str):
+    llm = get_llm()
+    vectorstore = get_vectorstore()
 
-# 인덱스 객체 가져오기
-index = pc.Index(settings.PINECONE_INDEX_NAME_REEMPLOYMENT)
+    # ✅ retriever에 filter 설정
+    retriever = vectorstore.as_retriever(search_kwargs={
+        "k": 5,
+        "filter": {
+            "field": field,
+            "age_group": "55세 이상"
+        }
+    })
 
-# 벡터스토어 연결
-vectorstore = VectorstorePinecone(
-    index=index,
-    embedding=embeddings,
-    text_key="text"
-)
+    system_prompt = (
+        f"오늘 날짜는 {current_date}입니다.\n"
+        f"사용자가 입력한 성별은 {gender}입니다.\n\n"
+        "context(문서)로부터 다음 정보를 수치 기반으로 요약하세요:\n"
+        "- 업종명\n"
+        "- 55세 이상 전체 근로자 수\n"
+        "- 55세 이상 남성/여성 근로자 수\n"
+        "- 전체 근로자 대비 해당 성별 비율(%)\n"
+        "- 업종의 비전\n"
+        "- 재취업 가능성\n"
+        "- 조언 한 마디\n\n"
+        "**답변은 반드시 3줄 이내로 작성하십시오.**\n"
+        "데이터가 없으면 '알 수 없음'으로 표시하세요."
+    )
 
-# LLM 세팅
-llm = ChatOpenAI(openai_api_key=OPENAI_API_KEY, model="gpt-4-1106-preview")
+    qa_prompt = ChatPromptTemplate.from_messages([
+        ("system", system_prompt),
+        ("human", "{input}"),
+        ("system", "참고 문서:\n{context}")
+    ])
 
-# RetrievalQA 체인
-reempolyment_qa_chain = RetrievalQA.from_chain_type(
-    llm=llm,
-    retriever=vectorstore.as_retriever(),
-    return_source_documents=True
-)
+    document_chain = create_stuff_documents_chain(
+        llm=llm,
+        prompt=qa_prompt,
+        output_parser=StrOutputParser()
+    )
 
-# 질문 처리
-def analyze_reemployment_possibility(question: str) -> dict:
-    response = reempolyment_qa_chain.invoke(question)
+    retriever_chain = create_retrieval_chain(retriever, document_chain)
+
+    result = retriever_chain.invoke({
+        "input": optimized_query
+    })
+
+    if isinstance(result, dict):
+        return result.get("answer", "요약 결과를 가져올 수 없습니다.")
+    else:
+        return str(result)
+
+
+
+# 최종 API
+def get_final_reemployment_analysis(user_question: str):
+    field, gender = extract_field_and_gender(user_question)
+    optimized_query = reformat_query(field, gender)
+    summary = search_and_summarize(field, gender, optimized_query)
+
     return {
-        "answer": response["result"],
-        "sources": [doc.metadata for doc in response["source_documents"]]
-    }
-
-# 분석 + 프로필 추출
-def analyze_and_extract_profile(question: str) -> dict:
-    result = analyze_reemployment_possibility(question)
-    profile = extract_user_profile(result["answer"])
-    return {
-        "answer": result["answer"],
-        "sources": result["sources"],
-        "age_group": profile.get("age_group"),
-        "field": profile.get("field")
+        "answer": summary
     }
