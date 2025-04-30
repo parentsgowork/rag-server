@@ -32,7 +32,6 @@ def extract_field_and_gender(question: str):
         "사용자의 질문에서 재취업 관련 업종(예: 정보통신업, 부동산업, 제조업 등)과 성별(남성 또는 여성)을 JSON 형태로 추출하세요. "
         "예시: {{\"field\": \"부동산업\", \"gender\": \"여성\"}}. "
         "업종이 명확하지 않으면 '일반', 성별이 명확하지 않으면 '모름'으로 표시하세요."
-        # ✅ 여기에 중괄호 { } 를 **두 개** 감싸야 해
         ),
         ("human", "{input}")
     ])
@@ -55,21 +54,36 @@ def extract_field_and_gender(question: str):
 def reformat_query(field: str, gender: str):
     return f"{field} 업종의 55세 이상 {gender} 근로자 수는 몇 명인가요?"
 
-
 # 3단계: 벡터 검색 + 요약
 def search_and_summarize(field: str, gender: str, optimized_query: str):
     llm = get_llm()
     vectorstore = get_vectorstore()
 
-    # ✅ retriever에 filter 설정
+    # 🔥 벡터 + 필터 동시 검색
     retriever = vectorstore.as_retriever(search_kwargs={
-        "k": 5,
+        "k": 10,
         "filter": {
-            "field": field,
+            "field": {"$contains": field},  # 필터는 여전히 걸어주되
             "age_group": "55세 이상"
         }
     })
 
+    # 쿼리 자체를 임베딩 → 벡터 유사도 검색
+    docs = retriever.invoke(optimized_query)  # ← 여기만 수정
+    print(f"🔍 Pinecone 검색 결과 수: {len(docs)}")
+    
+    for idx, doc in enumerate(docs):
+        print(f"  [{idx+1}] {doc.page_content[:100]}... (metadata: {doc.metadata})")
+
+    if not docs:
+        print("⚠️ 검색 결과 없음. fallback으로 전체에서 검색합니다.")
+        fallback_retriever = vectorstore.as_retriever(search_kwargs={"k": 10})
+        docs = fallback_retriever.get_relevant_documents(optimized_query)
+
+    if not docs:
+        return "관련 데이터를 찾을 수 없습니다."
+
+    # 요약 지시
     system_prompt = (
         f"오늘 날짜는 {current_date}입니다.\n"
         f"사용자가 입력한 성별은 {gender}입니다.\n\n"
@@ -97,18 +111,11 @@ def search_and_summarize(field: str, gender: str, optimized_query: str):
         output_parser=StrOutputParser()
     )
 
-    retriever_chain = create_retrieval_chain(retriever, document_chain)
+    retriever_chain = create_retrieval_chain(lambda _: docs, document_chain)
 
-    result = retriever_chain.invoke({
-        "input": optimized_query
-    })
+    result = retriever_chain.invoke({"input": optimized_query})
 
-    if isinstance(result, dict):
-        return result.get("answer", "요약 결과를 가져올 수 없습니다.")
-    else:
-        return str(result)
-
-
+    return result.get("answer") if isinstance(result, dict) else str(result)
 
 # 최종 API
 def get_final_reemployment_analysis(user_question: str):
