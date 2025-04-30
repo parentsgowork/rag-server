@@ -5,6 +5,7 @@ from app.services.rag_service import get_final_reemployment_analysis
 
 router = APIRouter()
 
+
 @router.get("/ping")
 async def ping():
     return {"message": "pong"}
@@ -20,9 +21,4 @@ async def reemployment_analysis_endpoint(request: ReemploymentRequest):
     if isinstance(answer, dict) and "input" in answer:
         answer = answer["input"]
 
-    return ReemploymentResponse(
-        answer=answer,
-        sources=[], 
-        age_group=None,
-        field=None
-    )
+    return ReemploymentResponse(answer=answer)
