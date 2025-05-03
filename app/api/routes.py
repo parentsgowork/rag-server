@@ -2,6 +2,9 @@
 from fastapi import APIRouter
 from app.models.schemas import ReemploymentRequest, ReemploymentResponse
 from app.services.rag_service import get_final_reemployment_analysis
+from app.models.eduSchemas import EducationInfo
+from app.models.eduSchemas import EducationSearchRequest, EducationSearchResponse
+from app.services.education_service import fetch_education_data, parse_education_xml
 
 router = APIRouter()
 
@@ -22,3 +25,10 @@ async def reemployment_analysis_endpoint(request: ReemploymentRequest):
         answer = answer["input"]
 
     return ReemploymentResponse(answer=answer)
+
+
+@router.post("/api/education-search", response_model=EducationSearchResponse)
+def education_search(request: EducationSearchRequest):
+    xml_data = fetch_education_data()
+    filtered_results = parse_education_xml(xml_data, request.category)
+    return {"results": filtered_results}
