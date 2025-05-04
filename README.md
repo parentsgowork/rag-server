@@ -1,36 +1,39 @@
 ## 파일 구조
 
 ```bash
-rag_chatbot/
+rag-server/
 ├── app/
 │   ├── api/
 │   │   ├── __init__.py
-│   │   └── routes.py            # FastAPI 엔드포인트 모음
+│   │   └── routes.py                  # FastAPI 엔드포인트 모음
 │   │
 │   ├── core/
 │   │   ├── __init__.py
-│   │   └── config.py            # dotenv 읽기 및 설정 관리
-│   │
-│   ├── services/
-│   │   ├── __init__.py
-│   │   ├── rag_service.py       # LangChain, OpenAI, Pinecone RAG 서비스 모듈
-│   │   └── data_ingest.py       # api/CSV -> Pinecone 벡터업로드 처리
+│   │   └── config.py                  # 환경변수 및 설정 관리
 │   │
 │   ├── models/
 │   │   ├── __init__.py
-│   │   └── schemas.py           # Pydantic Request/Response 모델
+│   │   ├── schemas.py                # 재취업 가능성 스키마
+│   │   ├── eduSchemas.py             # 교육 정보 관련 스키마
+│   │   └── policySchemas.py          # 정책 정보 관련 스키마
+│   │
+│   ├── services/
+│   │   ├── __init__.py
+│   │   ├── rag_service.py            # 재취업 가능성 판단
+│   │   ├── data_ingest.py            # 일반 데이터 벡터화 업로드
+│   │   ├── data_ingest_policy.py     # 정책 PDF 병합 및 벡터화 업로드
+│   │   ├── education_service.py      # 맞춤형 교육 정보 추천 서비스
+│   │   └── policy_service.py         # 복지/정책 추천 서비스
 │   │
 │   ├── utils/
 │   │   ├── __init__.py
-│   │   └── helpers.py           # 공용 유틸 함수 모음
-│   │
-│   └── main.py                  # FastAPI 앱 실행 파일
+│   │   ├── profile_extractor.py      # 사용자 재취업 프로필 추출기
+│   │   └── test_pinecone_inspect.py  # Pinecone 벡터 확인용 유틸
 │
-├── .env                         # 환경변수 설정
-├── requirements.txt             # 패키지 목록
-├── venv/                        # 가상환경 (gitignore에 포함)
+├── .env                               # 환경변수 설정 파일
+├── requirements.txt                   # 의존 패키지 목록
+├── venv/                              # 가상환경 (gitignore 대상)
 └── README.md
-
 ```
 
 ## Git Convention
