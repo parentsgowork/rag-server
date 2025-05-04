@@ -49,6 +49,7 @@ def get_policy_description(title: str) -> str:
 
     정보를 직접 문서에서 발췌해서, 최대한 사실 그대로 출력해줘.
     너의 생각이나 요약 없이, 원문 중심으로 정리해줘.
+    
     """
     return qa_chain.run(prompt).strip()
 
