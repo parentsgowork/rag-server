@@ -5,6 +5,8 @@ from app.services.rag_service import get_final_reemployment_analysis
 from app.models.eduSchemas import EducationInfo
 from app.models.eduSchemas import EducationSearchRequest, EducationSearchResponse
 from app.services.education_service import fetch_education_data, parse_education_xml
+from app.models.policySchemas import PolicyRecommendRequest, PolicyRecommendResponse
+from app.services.policy_service import recommend_policy_by_category
 
 router = APIRouter()
 
@@ -32,3 +34,12 @@ def education_search(request: EducationSearchRequest):
     xml_data = fetch_education_data()
     filtered_results = parse_education_xml(xml_data, request.category)
     return {"results": filtered_results}
+
+
+@router.post("/api/policy-recommend", response_model=PolicyRecommendResponse)
+async def policy_recommend(req: PolicyRecommendRequest):
+    policies = recommend_policy_by_category(req.category)
+
+    return PolicyRecommendResponse(
+        message=f"[{req.category}]의 복지 정보는 다음과 같습니다.", results=policies
+    )
