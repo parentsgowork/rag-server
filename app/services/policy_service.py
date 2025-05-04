@@ -30,7 +30,7 @@ llm = ChatOpenAI(temperature=0, openai_api_key=settings.OPENAI_API_KEY)
 qa_chain = RetrievalQA.from_chain_type(
     llm=llm,
     chain_type="stuff",
-    retriever=vectorstore.as_retriever(search_kwargs={"k": 5}),
+    retriever=vectorstore.as_retriever(search_kwargs={"k": 8}),
 )
 
 
@@ -38,17 +38,19 @@ qa_chain = RetrievalQA.from_chain_type(
 def get_policy_description(title: str) -> str:
     prompt = f"""
     정책명: {title}
-    
-    이 정책이 어떤 제도인지 설명해줘.
-    가능하면 아래 항목별로 구분해서 설명해 줘:
 
-    📌 대상:  
-    📌 지원 요건:  
-    📌 지원 내용:  
-    
-    정보가 부족하다면 가능한 만큼 요약해서 설명해줘.
+    이 정책에 대한 설명을 문서에서 **그대로 인용해서** 제공해줘.
+    대상, 지원 요건, 지원 내용을 항목별로 나누되, **최대한 GPT의 해석이나 요약 없이** 문서 원문 표현을 사용해줘.
+
+    항목 예시는 다음과 같아:
+    📌 대상: (원문 문장 그대로)
+    📌 지원 요건: (원문 문장 그대로)
+    📌 지원 내용: (원문 문장 그대로)
+
+    정보를 직접 문서에서 발췌해서, 최대한 사실 그대로 출력해줘.
+    너의 생각이나 요약 없이, 원문 중심으로 정리해줘.
     """
-    return qa_chain.run(prompt)
+    return qa_chain.run(prompt).strip()
 
 
 # 메인 함수
@@ -89,7 +91,7 @@ def recommend_policy_by_category(category: str) -> list[dict]:
             desc = get_policy_description(title)
 
             if not desc or "I don't" in desc:
-                desc = f"'{title}'에 대한 구체적인 설명을 찾지 못했습니다. 자세한 정보는 정책 페이지를 참고해주세요."
+                desc = f"'{title}'에 대한 구체적인 설명을 찾지 못했습니다. 자세한 정보는 정책 링크를 참고해주세요."
 
             results.append(
                 {"title": title, "description": desc, "url": policy_url_map[title]}
