@@ -29,7 +29,7 @@ jobs:
 
       - name: Run Tests
         run: |
-          pytest  # 또는 python -m unittest discover
+          PYTHONPATH=. pytest
 
   build-and-deploy:
     runs-on: ubuntu-latest
@@ -74,15 +74,14 @@ jobs:
           echo "$PRIVATE_KEY" > private_key.pem
           chmod 600 private_key.pem
 
-          # .env 파일 EC2에 복사ㄴ
+          # .env 파일 EC2로 복사
           scp -i private_key.pem -o StrictHostKeyChecking=no .env $USER@$HOST:/home/$USER/.env
 
-          # EC2에서 Docker 이미지 pull & run
+          # EC2에서 배포 실행
           ssh -i private_key.pem -o StrictHostKeyChecking=no $USER@$HOST << EOF
             docker pull "$DOCKER_HUB_USERNAME/myapp:latest"
-
             docker stop myapp || true
             docker rm myapp || true
-
             docker run -d --name myapp --env-file /home/$USER/.env -p 8080:8080 "$DOCKER_HUB_USERNAME/myapp:latest"
           EOF
+
