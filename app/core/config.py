@@ -16,6 +16,8 @@ class Settings(BaseSettings):
     seoul_openapi_key: str
     seoul_openapi_url: str
 
+    DATABASE_URL: str
+
     class Config:
         env_file = ".env"
 
