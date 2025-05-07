@@ -23,7 +23,7 @@ async def ping():
     return {"message": "pong"}
 
 
-@router.post("/reemployment-analysis", response_model=ReemploymentResponse)
+@router.post("/api/reemployment/analyze", response_model=ReemploymentResponse)
 async def reemployment_analysis_endpoint(request: ReemploymentRequest):
     question = request.question
     result = get_final_reemployment_analysis(question)
@@ -43,7 +43,7 @@ def education_search(request: EducationSearchRequest):
     return {"results": filtered_results}
 
 
-@router.post("/api/policy-recommend", response_model=PolicyRecommendResponse)
+@router.post("/api/policy/recommend", response_model=PolicyRecommendResponse)
 async def policy_recommend(req: PolicyRecommendRequest):
     policies = recommend_policy_by_category(req.category)
 
@@ -57,6 +57,6 @@ def bookmark_education(data: EducationBookmarkRequest, db: Session = Depends(get
     return save_bookmarked_education(data, db)
 
 
-@router.post("/api/policy")
+@router.post("/api/policy/bookmark")
 def bookmark_policy(data: PolicySaveRequest, db: Session = Depends(get_db)):
     return save_policy_bookmarks(data, db)
