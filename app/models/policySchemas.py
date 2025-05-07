@@ -20,6 +20,8 @@ class PolicyRecommendResponse(BaseModel):
 class PolicyItem(BaseModel):
     title: str
     category: str
+    description: str
+    url: str
 
 
 class PolicySaveRequest(BaseModel):
