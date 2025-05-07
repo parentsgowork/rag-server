@@ -1,7 +1,13 @@
 from app.core.config import settings
 import requests
+from app.models.eduSchemas import EducationBookmarkRequest
+from app.db_models.education import EducationInfo as EducationInfoDB
+from sqlalchemy.orm import Session
 import xml.etree.ElementTree as ET
 from app.models.eduSchemas import EducationInfo
+from sqlalchemy.orm import Session
+
+from app.db_models.education import EducationInfo as EducationInfoDB
 
 API_KEY = settings.seoul_openapi_key
 API_URL = settings.seoul_openapi_url
@@ -42,3 +48,11 @@ def parse_education_xml(xml_data, category):
             results.append(edu)
 
     return results
+
+
+def save_bookmarked_education(data: EducationBookmarkRequest, db: Session):
+    for item in data.bookmarks:
+        edu = EducationInfoDB(user_id=data.user_id, title=item.title, url=item.url)
+        db.add(edu)
+    db.commit()
+    return {"message": "북마크한 교육 정보가 저장되었습니다."}

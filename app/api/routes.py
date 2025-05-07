@@ -1,12 +1,16 @@
-# fast api 엔드포인트 모음
 from fastapi import APIRouter
 from app.models.schemas import ReemploymentRequest, ReemploymentResponse
 from app.services.rag_service import get_final_reemployment_analysis
-from app.models.eduSchemas import EducationInfo
+from app.db_models.education import EducationInfo
 from app.models.eduSchemas import EducationSearchRequest, EducationSearchResponse
 from app.services.education_service import fetch_education_data, parse_education_xml
 from app.models.policySchemas import PolicyRecommendRequest, PolicyRecommendResponse
 from app.services.policy_service import recommend_policy_by_category
+from fastapi import APIRouter, Depends
+from sqlalchemy.orm import Session
+from app.core.db import get_db
+from app.models.eduSchemas import EducationBookmarkRequest
+from app.services.education_service import save_bookmarked_education
 
 router = APIRouter()
 
@@ -43,3 +47,8 @@ async def policy_recommend(req: PolicyRecommendRequest):
     return PolicyRecommendResponse(
         message=f"[{req.category}]의 복지 정보는 다음과 같습니다.", results=policies
     )
+
+
+@router.post("/education/bookmark")
+def bookmark_education(data: EducationBookmarkRequest, db: Session = Depends(get_db)):
+    return save_bookmarked_education(data, db)
