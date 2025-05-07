@@ -55,4 +55,4 @@ def save_bookmarked_education(data: EducationBookmarkRequest, db: Session):
         edu = EducationInfoDB(user_id=data.user_id, title=item.title, url=item.url)
         db.add(edu)
     db.commit()
-    return {"message": "북마크한 교육 정보가 저장되었습니다."}
+    return {"message": "교육 정보 북마크 성공."}

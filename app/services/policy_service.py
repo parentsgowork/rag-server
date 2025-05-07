@@ -113,9 +113,9 @@ def save_policy_bookmarks(data: PolicySaveRequest, db: Session):
             user_id=data.user_id,
             category=policy.category,
             title=policy.title,
-            description=policy.description,  
-            url=policy.url 
+            description=policy.description,
+            url=policy.url,
         )
         db.add(info)
     db.commit()
-    return {"message": "선택한 복지 정보가 저장되었습니다."}
+    return {"message": "복지 정보 북마크 성공."}
