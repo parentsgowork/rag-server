@@ -1,34 +1,47 @@
 ## 파일 구조
 
 ```bash
-rag_chatbot/
+rag-server/
 ├── app/
-│   ├── api/
+│   ├── api/                         # FastAPI 엔드포인트 (라우팅)
 │   │   ├── __init__.py
-│   │   └── routes.py            # FastAPI 엔드포인트 모음
-│   │
-│   ├── core/
+│   │   └── routes.py
+
+│   ├── core/                        # 환경 설정 및 DB 연결
 │   │   ├── __init__.py
-│   │   └── config.py            # dotenv 읽기 및 설정 관리
-│   │
-│   ├── services/
+│   │   ├── config.py
+│   │   └── db.py
+
+│   ├── db_models/                   # SQLAlchemy 기반 DB 모델 정의
 │   │   ├── __init__.py
-│   │   ├── rag_service.py       # LangChain, OpenAI, Pinecone RAG 서비스 모듈
-│   │   └── data_ingest.py       # api/CSV -> Pinecone 벡터업로드 처리
-│   │
-│   ├── models/
+│   │   ├── education.py
+│   │   ├── policy.py
+│   │   └── user.py
+
+│   ├── models/                      # Pydantic 요청/응답 모델 (Schemas)
 │   │   ├── __init__.py
-│   │   └── schemas.py           # Pydantic Request/Response 모델
-│   │
-│   ├── utils/
+│   │   ├── eduSchemas.py
+│   │   ├── policySchemas.py
+│   │   └── reempSchemas.py
+
+│   ├── services/                    # 서비스 로직 (비즈니스 로직 처리)
 │   │   ├── __init__.py
-│   │   └── helpers.py           # 공용 유틸 함수 모음
-│   │
-│   └── main.py                  # FastAPI 앱 실행 파일
-│
-├── .env                         # 환경변수 설정
-├── requirements.txt             # 패키지 목록
-├── venv/                        # 가상환경 (gitignore에 포함)
+│   │   ├── rag_service.py
+│   │   ├── data_ingest.py
+│   │   ├── data_ingest_policy.py
+│   │   ├── education_service.py
+│   │   ├── policy_service.py
+│   │   └── reemp_service.py
+
+│   ├── utils/                       # 보조 유틸리티 모듈
+│   │   ├── __init__.py
+│   │   ├── db_test.py
+│   │   ├── profile_extractor.py
+│   │   └── test_pinecone_inspect.py
+
+├── .env                             # 환경변수 설정 파일
+├── requirements.txt                 # 의존 패키지 목록
+├── venv/                            # 가상환경
 └── README.md
 
 ```
