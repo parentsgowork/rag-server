@@ -3,37 +3,47 @@
 ```bash
 rag-server/
 ├── app/
-│   ├── api/
+│   ├── api/                         # FastAPI 엔드포인트 (라우팅)
 │   │   ├── __init__.py
-│   │   └── routes.py                  # FastAPI 엔드포인트 모음
-│   │
-│   ├── core/
+│   │   └── routes.py
+
+│   ├── core/                        # 환경 설정 및 DB 연결
 │   │   ├── __init__.py
-│   │   └── config.py                  # 환경변수 및 설정 관리
-│   │
-│   ├── models/
+│   │   ├── config.py
+│   │   └── db.py
+
+│   ├── db_models/                   # SQLAlchemy 기반 DB 모델 정의
 │   │   ├── __init__.py
-│   │   ├── schemas.py                # 재취업 가능성 스키마
-│   │   ├── eduSchemas.py             # 교육 정보 관련 스키마
-│   │   └── policySchemas.py          # 정책 정보 관련 스키마
-│   │
-│   ├── services/
+│   │   ├── education.py
+│   │   ├── policy.py
+│   │   └── user.py
+
+│   ├── models/                      # Pydantic 요청/응답 모델 (Schemas)
 │   │   ├── __init__.py
-│   │   ├── rag_service.py            # 재취업 가능성 판단
-│   │   ├── data_ingest.py            # 일반 데이터 벡터화 업로드
-│   │   ├── data_ingest_policy.py     # 정책 PDF 병합 및 벡터화 업로드
-│   │   ├── education_service.py      # 맞춤형 교육 정보 추천 서비스
-│   │   └── policy_service.py         # 복지/정책 추천 서비스
-│   │
-│   ├── utils/
+│   │   ├── eduSchemas.py
+│   │   ├── policySchemas.py
+│   │   └── reempSchemas.py
+
+│   ├── services/                    # 서비스 로직 (비즈니스 로직 처리)
 │   │   ├── __init__.py
-│   │   ├── profile_extractor.py      # 사용자 재취업 프로필 추출기
-│   │   └── test_pinecone_inspect.py  # Pinecone 벡터 확인용 유틸
-│
-├── .env                               # 환경변수 설정 파일
-├── requirements.txt                   # 의존 패키지 목록
-├── venv/                              # 가상환경 (gitignore 대상)
+│   │   ├── rag_service.py
+│   │   ├── data_ingest.py
+│   │   ├── data_ingest_policy.py
+│   │   ├── education_service.py
+│   │   ├── policy_service.py
+│   │   └── reemp_service.py
+
+│   ├── utils/                       # 보조 유틸리티 모듈
+│   │   ├── __init__.py
+│   │   ├── db_test.py
+│   │   ├── profile_extractor.py
+│   │   └── test_pinecone_inspect.py
+
+├── .env                             # 환경변수 설정 파일
+├── requirements.txt                 # 의존 패키지 목록
+├── venv/                            # 가상환경
 └── README.md
+
 ```
 
 ## Git Convention

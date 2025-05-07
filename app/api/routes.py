@@ -1,7 +1,7 @@
 from fastapi import Body
 from fastapi import APIRouter
-from app.models.schemas import ReemploymentRequest, ReemploymentResponse
-from app.services.rag_service import get_final_reemployment_analysis
+from app.models.reempSchemas import ReemploymentRequest, ReemploymentResponse
+from app.services.reemp_service import get_final_reemployment_analysis
 from app.db_models.education import EducationInfo
 from app.models.eduSchemas import EducationSearchRequest, EducationSearchResponse
 from app.services.education_service import fetch_education_data, parse_education_xml
