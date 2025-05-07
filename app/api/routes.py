@@ -8,9 +8,12 @@ from app.models.policySchemas import PolicyRecommendRequest, PolicyRecommendResp
 from app.services.policy_service import recommend_policy_by_category
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
+
 from app.core.db import get_db
 from app.models.eduSchemas import EducationBookmarkRequest
 from app.services.education_service import save_bookmarked_education
+from app.models.policySchemas import PolicySaveRequest
+from app.services.policy_service import save_policy_bookmarks
 
 router = APIRouter()
 
@@ -52,3 +55,8 @@ async def policy_recommend(req: PolicyRecommendRequest):
 @router.post("/education/bookmark")
 def bookmark_education(data: EducationBookmarkRequest, db: Session = Depends(get_db)):
     return save_bookmarked_education(data, db)
+
+
+@router.post("/api/policy")
+def bookmark_policy(data: PolicySaveRequest, db: Session = Depends(get_db)):
+    return save_policy_bookmarks(data, db)

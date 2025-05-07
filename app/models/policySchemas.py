@@ -15,3 +15,13 @@ class PolicyInfo(BaseModel):
 class PolicyRecommendResponse(BaseModel):
     message: str
     results: List[PolicyInfo]
+
+
+class PolicyItem(BaseModel):
+    title: str
+    category: str
+
+
+class PolicySaveRequest(BaseModel):
+    user_id: int
+    policies: List[PolicyItem]

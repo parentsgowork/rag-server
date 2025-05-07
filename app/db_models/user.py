@@ -56,3 +56,7 @@ class User(Base):
     educationInfos = relationship(
         "EducationInfo", back_populates="user", cascade="all, delete-orphan"
     )
+
+    policyInfos = relationship(
+        "PolicyInfo", back_populates="user", cascade="all, delete-orphan"
+    )

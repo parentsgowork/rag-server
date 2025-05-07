@@ -1,6 +1,9 @@
 from langchain.chains import RetrievalQA
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from langchain_pinecone import PineconeVectorStore
+from sqlalchemy.orm import Session
+from app.db_models.policy import PolicyInfo
+from app.models.policySchemas import PolicySaveRequest
 from app.core.config import settings
 
 # 정책명 ↔ URL 매핑
@@ -102,3 +105,13 @@ def recommend_policy_by_category(category: str) -> list[dict]:
             continue
 
     return results
+
+
+def save_policy_bookmarks(data: PolicySaveRequest, db: Session):
+    for policy in data.policies:
+        info = PolicyInfo(
+            user_id=data.user_id, category=policy.category, title=policy.title
+        )
+        db.add(info)
+    db.commit()
+    return {"message": "선택한 복지 정보가 저장되었습니다."}
