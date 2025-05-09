@@ -16,6 +16,8 @@ class Settings(BaseSettings):
     seoul_openapi_key: str
     seoul_openapi_url: str
 
+    JOB_INFO_URL: str
+    JOB_INFO_KEY: str
     DATABASE_URL: str
 
     class Config:

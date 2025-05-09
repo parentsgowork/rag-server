@@ -9,3 +9,6 @@ class ReemploymentRequest(BaseModel):
 
 class ReemploymentResponse(BaseModel):
     answer: str
+    reemployment_score: int  # 0 ~ 100
+    market_fit: str  # "높음", "보통", "낮음"
+    summary: str
