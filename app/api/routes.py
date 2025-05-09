@@ -16,6 +16,12 @@ from app.services.education_service import save_bookmarked_education
 from app.models.policySchemas import PolicySaveRequest
 from app.services.policy_service import save_policy_bookmarks
 
+from fastapi import Query
+from app.services.job_service import fetch_job_data
+from app.models.jobSchemas import JobSummary
+from fastapi.responses import JSONResponse
+
+
 router = APIRouter()
 
 
@@ -228,3 +234,39 @@ def bookmark_policy(
     db: Session = Depends(get_db),
 ):
     return save_policy_bookmarks(data, db)
+
+
+@router.get(
+    "/api/jobs/recommend",
+    response_model=dict,
+    summary="중장년 구직 정보 추천",
+    description="카테고리에 따라 고령자 우대 구직 정보들을 불러오고, GPT가 각 항목에 대해 객관적으로 설명한 텍스트를 반환합니다.",
+    response_description="채용 목록과 설명",
+    responses={
+        200: {
+            "description": "구직 정보 추천 예시",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "count": 2,
+                        "results": [
+                            {
+                                "title": "사무보조원 채용",
+                                "description": "고졸 이상 학력의 경력 무관자를 대상으로 하며...",
+                            },
+                            {
+                                "title": "기계 정비원 모집",
+                                "description": "정비 경력이 필요하며 기술직으로 분류되며...",
+                            },
+                        ],
+                    }
+                }
+            },
+        }
+    },
+)
+def get_job_info(
+    category: str = Query(..., description="사무직, 서비스직, 기술직, 판매직 중 하나")
+):
+    result = fetch_job_data(category)
+    return JSONResponse(content=result)
