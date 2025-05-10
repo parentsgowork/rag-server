@@ -2,11 +2,20 @@ from pydantic import BaseModel
 from typing import List
 
 
-class JobSummary(BaseModel):
+class UserPreference(BaseModel):
+    region: str
+    career: str
+    education: str
+    work_type: List[str]
+
+
+class JobPosting(BaseModel):
     title: str
-    description: str
+    region: str
+    career: str
+    education: str
+    work_type: str
 
 
-class JobSummaryResponse(BaseModel):
-    count: int
-    results: List[JobSummary]
+class JobRecommendationResponse(BaseModel):
+    recommendations: List[JobPosting]

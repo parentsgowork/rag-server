@@ -17,10 +17,16 @@ from app.models.policySchemas import PolicySaveRequest
 from app.services.policy_service import save_policy_bookmarks
 
 from fastapi import Query
-from app.services.job_service import fetch_job_data
-from app.models.jobSchemas import JobSummary
-from fastapi.responses import JSONResponse
 
+from fastapi.responses import JSONResponse
+from app.services.crawl import crawl_all_jobs
+
+from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel
+from typing import List
+from app.models.jobSchemas import UserPreference
+from app.models.jobSchemas import UserPreference, JobRecommendationResponse
+from app.services.job_service import filter_jobs
 
 router = APIRouter()
 
@@ -28,6 +34,15 @@ router = APIRouter()
 @router.get("/ping")
 async def ping():
     return {"message": "pong"}
+
+
+@router.post("/recommend-jobs", response_model=JobRecommendationResponse)
+def recommend_jobs(preference: UserPreference):
+    try:
+        results = filter_jobs(preference)
+        return JobRecommendationResponse(recommendations=results)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.post(
