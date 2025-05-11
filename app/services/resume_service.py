@@ -1,11 +1,10 @@
+import uuid
 from langchain.prompts import PromptTemplate
 from langchain_openai import ChatOpenAI
-from app.models.resumeSchemas import *
-from app.core.config import settings
-import uuid
 
-llm = ChatOpenAI(openai_api_key=settings.OPENAI_API_KEY, model="gpt-4", temperature=0.7)
+llm = ChatOpenAI(model="gpt-4", temperature=0.7)
 
+# 카테고리 순서 및 질문 텍스트 정의
 CATEGORY_ORDER = ["성장과정", "지원동기", "입사포부", "강점약점", "프로젝트경험"]
 QUESTION_MAP = {
     "성장과정": "성장과정에 대해 말씀해주세요.",
@@ -15,6 +14,7 @@ QUESTION_MAP = {
     "프로젝트경험": "인상 깊은 프로젝트 경험을 말해주세요.",
 }
 
+# 항목별 LangChain 프롬프트 템플릿
 PROMPT_TEMPLATES = {
     "성장과정": PromptTemplate.from_template(
         """
@@ -63,7 +63,7 @@ PROMPT_TEMPLATES = {
     ),
 }
 
-# 세션 저장소
+# 메모리 기반 세션 저장소
 SESSIONS = {}
 
 
@@ -75,7 +75,8 @@ def init_session(company: str, position: str):
         "answers": {},
         "current_index": 0,
     }
-    return session_id, CATEGORY_ORDER[0], QUESTION_MAP[CATEGORY_ORDER[0]]
+    first_category = CATEGORY_ORDER[0]
+    return session_id, first_category, QUESTION_MAP[first_category]
 
 
 def generate_ai_answer(category: str, user_input: str, company: str, position: str):
@@ -87,7 +88,13 @@ def generate_ai_answer(category: str, user_input: str, company: str, position: s
 
 def process_user_answer(session_id: str, user_input: str):
     session = SESSIONS.get(session_id)
+    if not session:
+        raise ValueError("존재하지 않는 세션입니다.")
+
     idx = session["current_index"]
+    if idx >= len(CATEGORY_ORDER):
+        raise ValueError("모든 질문이 완료되었습니다.")
+
     category = CATEGORY_ORDER[idx]
 
     # AI 응답 생성
@@ -119,7 +126,7 @@ def process_user_answer(session_id: str, user_input: str):
 def get_resume(session_id: str):
     session = SESSIONS.get(session_id)
     if not session:
-        return {}
+        raise ValueError("세션을 찾을 수 없습니다.")
 
     return {
         "title": f"{session['company']} {session['position']} 지원 자기소개서",

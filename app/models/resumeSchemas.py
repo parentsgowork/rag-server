@@ -9,7 +9,6 @@ class ResumeInitRequest(BaseModel):
 
 class ResumeAnswerRequest(BaseModel):
     session_id: str
-    category: str  # 성장과정, 지원동기 등
     user_input: str
 
 
