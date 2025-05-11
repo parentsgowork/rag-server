@@ -1,3 +1,4 @@
+"""
 import os
 import pandas as pd
 from dotenv import load_dotenv
@@ -72,3 +73,4 @@ def ingest_data(file_path):
 
 if __name__ == "__main__":
     ingest_data(file_path)
+"""
