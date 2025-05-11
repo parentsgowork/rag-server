@@ -21,6 +21,8 @@ from app.services.job_service import fetch_job_data
 from app.models.jobSchemas import JobSummary
 from fastapi.responses import JSONResponse
 
+from app.models.resumeSchemas import *
+from app.services.resume_service import *
 
 router = APIRouter()
 
@@ -267,3 +269,65 @@ def get_job_info(
 ):
     result = fetch_job_data(category)
     return JSONResponse(content=result)
+
+
+# 세션 생성 및 첫 번째 질문 반환
+@router.post(
+    "/resume/init",
+    summary="자기소개서 세션 시작",
+    description="입사할 회사명과 직무를 입력받아 자기소개서 작성을 위한 세션을 초기화하고 첫 번째 질문을 반환.",
+)
+def init(data: ResumeInitRequest):
+    """
+    입력:
+    - company: 지원 회사명
+    - position: 지원 직무명
+
+    출력:
+    - session_id: 고유 세션 ID
+    - category: 현재 질문 항목 (예: '성장과정')
+    - question: 사용자에게 보여줄 질문 텍스트
+    """
+    session_id, category, question = init_session(data.company, data.position)
+    return {"session_id": session_id, "category": category, "question": question}
+
+
+# 사용자 입력 저장 + 해당 항목의 GPT 응답 생성 -> 다음 질문 반환
+@router.post(
+    "/resume/answer",
+    summary="사용자 입력에 대한 AI 응답 생성",
+    description="현재 질문에 대한 사용자의 답변을 받아 AI가 해당 항목의 자기소개서 문장을 생성. 이후 다음 질문 항목도 함께 반환.",
+)
+def answer(data: ResumeAnswerRequest):
+    """
+    입력:
+    - session_id: 기존 생성된 세션 ID
+    - user_input: 사용자 입력 내용 (해당 항목에 대한 자유 입력)
+
+    출력:
+    - current_category: 방금 답변한 항목명
+    - ai_response: AI가 생성한 자기소개서 문장
+    - next_category: 다음 질문 항목명 (마지막이면 없음)
+    - next_question: 다음 질문 텍스트
+    - is_last: True면 마지막 항목
+    """
+    return process_user_answer(data.session_id, data.user_input)
+
+
+# 완성된 자기소개서 반환
+@router.get(
+    "/resume/result/{session_id}",
+    summary="최종 자기소개서 결과 조회",
+    description="해당 세션 ID에 대해 지금까지 작성된 모든 자기소개서 항목과 내용을 반환.",
+    response_model=ResumeResult,
+)
+def result(session_id: str):
+    """
+    입력:
+    - session_id: 자기소개서 작성 세션 ID
+
+    출력:
+    - title: '삼성전자 소프트웨어 개발자 지원 자기소개서' 형태의 제목
+    - sections: 카테고리별 작성된 AI 자기소개서 텍스트 (딕셔너리 형태)
+    """
+    return get_resume(session_id)
