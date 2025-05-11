@@ -150,3 +150,15 @@ def save_resume_to_db(db: Session, data: ResumeSaveRequest):
     db.commit()
     db.refresh(resume)
     return resume
+
+
+def get_resumes_by_user_id(db: Session, user_id: int):
+    resumes = db.query(Resume).filter(Resume.user_id == user_id).all()
+    result = []
+    for r in resumes:
+        try:
+            content_dict = json.loads(r.content)
+        except json.JSONDecodeError:
+            content_dict = {}
+        result.append({"title": r.title, "sections": content_dict})
+    return result

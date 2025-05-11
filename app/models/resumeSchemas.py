@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import Dict, Optional
+from typing import Dict
 from enum import Enum
 
 
@@ -17,16 +17,16 @@ class ResumeAnswerResponse(BaseModel):
     ai_response: str
 
 
-class ResumeResult(BaseModel):
-    title: str
-    sections: Dict[str, str]  # {"성장과정": "...", "지원동기": "...", ...}
-
-
 class ResumeCategory(str, Enum):
     GENERAL = "GENERAL"
     TECH = "TECH"
     CAREER = "CAREER"
     ACADEMIC = "ACADEMIC"
+
+
+class ResumeResult(BaseModel):
+    title: str
+    sections: Dict[str, str]
 
 
 class ResumeSaveRequest(BaseModel):

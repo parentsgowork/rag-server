@@ -1,34 +1,48 @@
-from fastapi import Body
-from fastapi import APIRouter
-from fastapi import Depends
+from fastapi import APIRouter, Depends, Body, Query
+from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
+
 from app.core.db import get_db
-from app.models.resumeSchemas import ResumeSaveRequest
-from app.services.resume_service import save_resume_to_db
+
+from app.models.resumeSchemas import (
+    ResumeInitRequest,
+    ResumeAnswerRequest,
+    ResumeSaveRequest,
+    ResumeResult,
+)
+
+from app.services.resume_service import (
+    init_session,
+    process_user_answer,
+    get_resume,
+    save_resume_to_db,
+    get_resumes_by_user_id,
+)
 
 from app.models.reempSchemas import ReemploymentRequest, ReemploymentResponse
 from app.services.reemp_service import get_final_reemployment_analysis
-from app.db_models.education import EducationInfo
-from app.models.eduSchemas import EducationSearchRequest, EducationSearchResponse
-from app.services.education_service import fetch_education_data, parse_education_xml
-from app.models.policySchemas import PolicyRecommendRequest, PolicyRecommendResponse
-from app.services.policy_service import recommend_policy_by_category
-from fastapi import APIRouter, Depends
-from sqlalchemy.orm import Session
 
-from app.core.db import get_db
-from app.models.eduSchemas import EducationBookmarkRequest
-from app.services.education_service import save_bookmarked_education
-from app.models.policySchemas import PolicySaveRequest
-from app.services.policy_service import save_policy_bookmarks
+from app.models.eduSchemas import (
+    EducationSearchRequest,
+    EducationSearchResponse,
+    EducationBookmarkRequest,
+)
+from app.services.education_service import (
+    fetch_education_data,
+    parse_education_xml,
+    save_bookmarked_education,
+)
 
-from fastapi import Query
-from app.services.job_service import fetch_job_data
-from app.models.jobSchemas import JobSummary
-from fastapi.responses import JSONResponse
+from app.models.policySchemas import (
+    PolicyRecommendRequest,
+    PolicyRecommendResponse,
+    PolicySaveRequest,
+)
+from app.services.policy_service import (
+    recommend_policy_by_category,
+    save_policy_bookmarks,
+)
 
-from app.models.resumeSchemas import *
-from app.services.resume_service import *
 
 router = APIRouter()
 
@@ -243,7 +257,7 @@ def bookmark_policy(
 
 # 세션 생성 및 첫 번째 질문 반환
 @router.post(
-    "/resume/init",
+    "/api/resume/init",
     summary="자기소개서 세션 시작",
     description="입사할 회사명과 직무를 입력받아 자기소개서 작성을 위한 세션을 초기화하고 첫 번째 질문을 반환.",
 )
@@ -264,7 +278,7 @@ def init(data: ResumeInitRequest):
 
 # 사용자 입력 저장 + 해당 항목의 GPT 응답 생성 -> 다음 질문 반환
 @router.post(
-    "/resume/answer",
+    "/api/resume/answer",
     summary="사용자 입력에 대한 AI 응답 생성",
     description="현재 질문에 대한 사용자의 답변을 받아 AI가 해당 항목의 자기소개서 문장을 생성. 이후 다음 질문 항목도 함께 반환.",
 )
@@ -286,7 +300,7 @@ def answer(data: ResumeAnswerRequest):
 
 # 완성된 자기소개서 반환
 @router.get(
-    "/resume/result/{session_id}",
+    "/api/resume/result/{session_id}",
     summary="최종 자기소개서 결과 조회",
     description="해당 세션 ID에 대해 지금까지 작성된 모든 자기소개서 항목과 내용을 반환.",
     response_model=ResumeResult,
@@ -303,7 +317,89 @@ def result(session_id: str):
     return get_resume(session_id)
 
 
-@router.post("/resume/save", summary="자기소개서 DB 저장")
-def save_resume(data: ResumeSaveRequest, db: Session = Depends(get_db)):
+@router.post(
+    "/api/resume/save",
+    summary="자기소개서 저장",
+    description="완성된 자기소개서를 DB에 저장합니다. 저장된 content는 JSON 문자열로 저장되며, resume_category와 제목도 함께 저장됩니다.",
+    response_description="저장 결과 메시지 및 생성된 resume_id",
+    responses={
+        200: {
+            "description": "자기소개서 저장 성공 응답",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "resume_id": 12,
+                        "message": "자기소개서가 저장되었습니다.",
+                    }
+                }
+            },
+        },
+        400: {
+            "description": "입력 오류",
+            "content": {
+                "application/json": {
+                    "example": {"detail": "입력 값이 유효하지 않습니다."}
+                }
+            },
+        },
+    },
+)
+def save_resume(
+    data: ResumeSaveRequest = Body(
+        example={
+            "user_id": 1,
+            "title": "삼성전자 백엔드 개발자 지원 자기소개서",
+            "sections": {
+                "성장과정": "...",
+                "지원동기": "...",
+                "입사포부": "...",
+                "강점약점": "...",
+                "프로젝트경험": "...",
+            },
+            "resume_category": "TECH",
+        }
+    ),
+    db: Session = Depends(get_db),
+):
     saved = save_resume_to_db(db, data)
     return {"resume_id": saved.id, "message": "자기소개서가 저장되었습니다."}
+
+
+@router.get(
+    "/api/resume/user/{user_id}",
+    response_model=list[ResumeResult],
+    summary="사용자의 자기소개서 목록 조회",
+    description="특정 user_id에 해당하는 사용자가 저장한 자기소개서 리스트를 조회합니다. 각 자기소개서는 title과 sections(JSON 파싱된 dict 형태)로 반환됩니다.",
+    response_description="자기소개서 목록",
+    responses={
+        200: {
+            "description": "조회 성공",
+            "content": {
+                "application/json": {
+                    "example": [
+                        {
+                            "title": "삼성전자 백엔드 개발자 지원 자기소개서",
+                            "sections": {
+                                "성장과정": "...",
+                                "지원동기": "...",
+                                "입사포부": "...",
+                                "강점약점": "...",
+                                "프로젝트경험": "...",
+                            },
+                        }
+                    ]
+                }
+            },
+        },
+        404: {
+            "description": "해당 사용자의 자기소개서가 없음",
+            "content": {
+                "application/json": {
+                    "example": {"detail": "자기소개서가 존재하지 않습니다."}
+                }
+            },
+        },
+    },
+)
+def get_user_resumes(user_id: int, db: Session = Depends(get_db)):
+    return get_resumes_by_user_id(db, user_id)
