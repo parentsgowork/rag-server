@@ -21,6 +21,8 @@ from app.services.job_service import fetch_job_data
 from app.models.jobSchemas import JobSummary
 from fastapi.responses import JSONResponse
 
+from app.models.resumeSchemas import *
+from app.services.resume_service import *
 
 router = APIRouter()
 
@@ -267,3 +269,22 @@ def get_job_info(
 ):
     result = fetch_job_data(category)
     return JSONResponse(content=result)
+
+
+# 세션 생성 및 첫 번째 질문 반환
+@router.post("/resume/init")
+def init(data: ResumeInitRequest):
+    session_id, category, question = init_session(data.company, data.position)
+    return {"session_id": session_id, "category": category, "question": question}
+
+
+# 사용자 입력 저장 + 해당 항목의 GPT 응답 생성 -> 다음 질문 반환
+@router.post("/resume/answer")
+def answer(data: ResumeAnswerRequest):
+    return process_user_answer(data.session_id, data.user_input)
+
+
+# 완성된 자기소개서 반환
+@router.get("/resume/result/{session_id}", response_model=ResumeResult)
+def result(session_id: str):
+    return get_resume(session_id)
