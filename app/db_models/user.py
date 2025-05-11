@@ -37,7 +37,7 @@ class Role(str, enum.Enum):
 
 # User 모델
 class User(Base):
-    __tablename__ = "user"
+    __tablename__ = "User"  # ERD에 맞게 수정
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(20), nullable=False)
@@ -52,11 +52,12 @@ class User(Base):
     status = Column(Enum(UserStatus), nullable=False)
     role = Column(Enum(Role), nullable=True)
 
-    # relationships
+    resumes = relationship(
+        "Resume", back_populates="user", cascade="all, delete-orphan"
+    )
     educationInfos = relationship(
         "EducationInfo", back_populates="user", cascade="all, delete-orphan"
     )
-
     policyInfos = relationship(
         "PolicyInfo", back_populates="user", cascade="all, delete-orphan"
     )

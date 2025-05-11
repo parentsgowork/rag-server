@@ -1,5 +1,11 @@
 from fastapi import Body
 from fastapi import APIRouter
+from fastapi import Depends
+from sqlalchemy.orm import Session
+from app.core.db import get_db
+from app.models.resumeSchemas import ResumeSaveRequest
+from app.services.resume_service import save_resume_to_db
+
 from app.models.reempSchemas import ReemploymentRequest, ReemploymentResponse
 from app.services.reemp_service import get_final_reemployment_analysis
 from app.db_models.education import EducationInfo
@@ -235,42 +241,6 @@ def bookmark_policy(
     return save_policy_bookmarks(data, db)
 
 
-@router.get(
-    "/api/jobs/recommend",
-    response_model=dict,
-    summary="중장년 구직 정보 추천 (공사중..)",
-    description="카테고리에 따라 고령자 우대 구직 정보들을 불러오고, GPT가 각 항목에 대해 객관적으로 설명한 텍스트를 반환합니다.",
-    response_description="채용 목록과 설명",
-    responses={
-        200: {
-            "description": "구직 정보 추천 예시",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "count": 2,
-                        "results": [
-                            {
-                                "title": "사무보조원 채용",
-                                "description": "고졸 이상 학력의 경력 무관자를 대상으로 하며...",
-                            },
-                            {
-                                "title": "기계 정비원 모집",
-                                "description": "정비 경력이 필요하며 기술직으로 분류되며...",
-                            },
-                        ],
-                    }
-                }
-            },
-        }
-    },
-)
-def get_job_info(
-    category: str = Query(..., description="사무직, 서비스직, 기술직, 판매직 중 하나")
-):
-    result = fetch_job_data(category)
-    return JSONResponse(content=result)
-
-
 # 세션 생성 및 첫 번째 질문 반환
 @router.post(
     "/resume/init",
@@ -331,3 +301,9 @@ def result(session_id: str):
     - sections: 카테고리별 작성된 AI 자기소개서 텍스트 (딕셔너리 형태)
     """
     return get_resume(session_id)
+
+
+@router.post("/resume/save", summary="자기소개서 DB 저장")
+def save_resume(data: ResumeSaveRequest, db: Session = Depends(get_db)):
+    saved = save_resume_to_db(db, data)
+    return {"resume_id": saved.id, "message": "자기소개서가 저장되었습니다."}

@@ -4,10 +4,10 @@ from app.core.db import Base
 
 
 class PolicyInfo(Base):
-    __tablename__ = "policy_info"
+    __tablename__ = "PolicyInfo"
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("user.id", ondelete="CASCADE"), nullable=False)
+    user_id = Column(Integer, ForeignKey("User.id", ondelete="CASCADE"), nullable=False)
     category = Column(String(50), nullable=False)
     title = Column(String(100), nullable=False)
     description = Column(Text, nullable=True)
