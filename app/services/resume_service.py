@@ -1,6 +1,10 @@
 import uuid
+import json
+from sqlalchemy.orm import Session
 from langchain.prompts import PromptTemplate
 from langchain_openai import ChatOpenAI
+from app.db_models.resume import Resume
+from app.models.resumeSchemas import ResumeSaveRequest
 
 llm = ChatOpenAI(model="gpt-4", temperature=0.7)
 
@@ -132,3 +136,29 @@ def get_resume(session_id: str):
         "title": f"{session['company']} {session['position']} 지원 자기소개서",
         "sections": session["answers"],
     }
+
+
+def save_resume_to_db(db: Session, data: ResumeSaveRequest):
+    content_json_str = json.dumps(data.sections, ensure_ascii=False)
+    resume = Resume(
+        user_id=data.user_id,
+        title=data.title,
+        content=content_json_str,
+        resume_category=data.resume_category,
+    )
+    db.add(resume)
+    db.commit()
+    db.refresh(resume)
+    return resume
+
+
+def get_resumes_by_user_id(db: Session, user_id: int):
+    resumes = db.query(Resume).filter(Resume.user_id == user_id).all()
+    result = []
+    for r in resumes:
+        try:
+            content_dict = json.loads(r.content)
+        except json.JSONDecodeError:
+            content_dict = {}
+        result.append({"title": r.title, "sections": content_dict})
+    return result
