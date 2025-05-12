@@ -1,10 +1,8 @@
-from sqlalchemy import Column, Integer, String, Text, Enum as SqlEnum, ForeignKey
+from sqlalchemy import Column, BigInteger, String, Text, Enum as SqlEnum, ForeignKey
 from sqlalchemy.orm import relationship
 from app.core.db import Base
+from app.db_models.base_entity import TimestampMixin
 import enum
-
-
-# ------------------ ResumeCategory Enum ------------------
 
 
 class ResumeCategory(str, enum.Enum):
@@ -25,16 +23,15 @@ class ResumeCategory(str, enum.Enum):
         }[self.value]
 
 
-# ------------------ Resume 모델 ------------------
-
-
-class Resume(Base):
+class Resume(Base, TimestampMixin):
     __tablename__ = "resume"
 
-    id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("user.id", ondelete="CASCADE"), nullable=False)
+    id = Column(BigInteger, primary_key=True, index=True, autoincrement=True)
+    user_id = Column(
+        BigInteger, ForeignKey("user.id", ondelete="CASCADE"), nullable=False
+    )
     user = relationship("User", back_populates="resumes")
 
     title = Column(String(50), nullable=False)
     content = Column(Text, nullable=False)
-    resumeCategory = Column(SqlEnum(ResumeCategory), nullable=False)
+    resume_category = Column(SqlEnum(ResumeCategory), nullable=False)
