@@ -366,7 +366,7 @@ def save_resume(
 
 
 @router.get(
-    "/api/resume/user/{user_id}",
+    "/api/resume/user/{userId}",
     response_model=list[ResumeResult],
     summary="사용자의 자기소개서 목록 조회",
     description="특정 user_id에 해당하는 사용자가 저장한 자기소개서 리스트를 조회합니다. 각 자기소개서는 title과 sections(JSON 파싱된 dict 형태)로 반환됩니다.",
@@ -401,5 +401,5 @@ def save_resume(
         },
     },
 )
-def get_user_resumes(user_id: int, db: Session = Depends(get_db)):
-    return get_resumes_by_user_id(db, user_id)
+def get_user_resumes(userId: int, db: Session = Depends(get_db)):
+    return get_resumes_by_user_id(db, userId)

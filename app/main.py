@@ -17,7 +17,3 @@ app.include_router(routes.router)
 @app.get("/")
 def read_root():
     return {"message": "RAG Chatbot API"}
-
-
-# 현재 연결된 DB 테이블 초기 생성,반영
-Base.metadata.create_all(bind=engine)
