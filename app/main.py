@@ -3,7 +3,7 @@ from fastapi import FastAPI
 from app.api import routes
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.db import engine
-from app.db_models.education import EducationInfo
+from app.db_models.education_info import EducationInfo
 from app.db_models.user import User  # 새로 만들 예정
 from app.core.db import Base
 

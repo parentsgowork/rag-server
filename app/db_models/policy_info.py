@@ -7,10 +7,11 @@ class PolicyInfo(Base):
     __tablename__ = "PolicyInfo"
 
     id = Column(Integer, primary_key=True, index=True)
+
     user_id = Column(Integer, ForeignKey("User.id", ondelete="CASCADE"), nullable=False)
+    user = relationship("User", back_populates="policyInfos")
+
     category = Column(String(50), nullable=False)
-    title = Column(String(100), nullable=False)
+    title = Column(String(50), nullable=False)
     description = Column(Text, nullable=True)
     url = Column(Text, nullable=True)
-
-    user = relationship("User", back_populates="policyInfos")
