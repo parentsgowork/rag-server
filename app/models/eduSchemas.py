@@ -1,5 +1,6 @@
 from pydantic import BaseModel
 from typing import List
+from app.models.common import TimestampMixin
 
 
 class EducationSearchRequest(BaseModel):
@@ -26,6 +27,6 @@ class EducationItem(BaseModel):
     url: str
 
 
-class EducationBookmarkRequest(BaseModel):
+class EducationBookmarkRequest(TimestampMixin):
     user_id: int
     bookmarks: List[EducationItem]

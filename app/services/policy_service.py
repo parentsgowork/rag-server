@@ -2,7 +2,7 @@ from langchain.chains import RetrievalQA
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from langchain_pinecone import PineconeVectorStore
 from sqlalchemy.orm import Session
-from app.db_models.policy import PolicyInfo
+from app.db_models.policy_info import PolicyInfo
 from app.models.policySchemas import PolicySaveRequest
 from app.core.config import settings
 

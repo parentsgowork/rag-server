@@ -1,13 +1,13 @@
 from app.core.config import settings
 import requests
 from app.models.eduSchemas import EducationBookmarkRequest
-from app.db_models.education import EducationInfo as EducationInfoDB
+from app.db_models.education_info import EducationInfo as EducationInfoDB
 from sqlalchemy.orm import Session
 import xml.etree.ElementTree as ET
 from app.models.eduSchemas import EducationInfo
 from sqlalchemy.orm import Session
 
-from app.db_models.education import EducationInfo as EducationInfoDB
+from app.db_models.education_info import EducationInfo as EducationInfoDB
 
 API_KEY = settings.seoul_openapi_key
 API_URL = settings.seoul_openapi_url

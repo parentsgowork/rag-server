@@ -1,5 +1,6 @@
 from pydantic import BaseModel
 from typing import List
+from app.models.common import TimestampMixin
 
 
 class JobSummary(BaseModel):
