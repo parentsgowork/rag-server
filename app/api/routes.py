@@ -55,8 +55,41 @@ async def ping():
     return {"message": "pong"}
 
 
-@router.get("/api/job/recommend", response_model=list[JobRecommendation])
-def recommend_job_for_user(user_id: int, db: Session = Depends(get_db)):
+@router.get(
+    "/api/job/recommend",
+    response_model=list[JobRecommendation],
+    summary="사용자 맞춤 구직 추천",
+    description="user_id에 기반하여 서울시 구인공고 중 사용자 조건에 맞는 구직 정보를 추천하고, 각 항목에 대해 GPT 기반 설명을 포함하여 반환합니다.",
+    response_description="추천된 구직 리스트",
+    responses={
+        200: {
+            "description": "구직 추천 응답 예시",
+            "content": {
+                "application/json": {
+                    "example": [
+                        {
+                            "jo_reqst_no": "H954202505090864",
+                            "jo_regist_no": "K120122505090018",
+                            "company_name": "늘섬김 재가복지센터",
+                            "job_title": "제기동 90세 4등급 10:30-13:30 주5일 할머니 모실 요양보호사 모십니다.",
+                            "description": "우대사항: 고령자 이동 지원, 목욕 등 신체 활동 지원, 가사 및 일상 생활 지원, 정서 지원에 능한 요양보호사\n\n직무 특징: 90세의 4등급 할머니를 주 5일, 오전 10시 30분부터 오후 1시 30분까지 돌봐야 합니다. 실내에서는 이동식 보행기를 이용하며, 외출 시에는 휠체어를 이용합니다. 인지력이 좋아 본인 의사를 잘 전달하며, 딸이 주말에 필요한 물품을 챙겨줍니다. 시급은 10,030원이며 기초 수당이 별도로 제공됩니다.",
+                            "deadline": "마감일 (2025-07-08)",
+                            "location": "서울 동대문구.",
+                            "pay": "시급 / 10030원 ",
+                            "registration_date": "2025-05-09",
+                            "time": "(근무시간) (오전) 10시 30분 ~ (오후) 1시 30분",
+                        }
+                    ]
+                }
+            },
+        }
+    },
+)
+def recommend_job_for_user(
+    user_id: int,
+    db: Session = Depends(get_db),
+    token_data=Depends(verify_jwt),
+):
     return recommend_jobs(user_id, db)
 
 
@@ -86,6 +119,7 @@ async def reemployment_analysis_endpoint(
     request: ReemploymentRequest = Body(
         example={"question": "50대, 광업, 남성 재취업 가능성이 궁금해"}
     ),
+    token_data=Depends(verify_jwt),
 ):
     question = request.question
     result = get_final_reemployment_analysis(question)
@@ -138,6 +172,7 @@ def education_search(
             "category": "디지털기초역량/사무행정실무/전문기술자격증/서비스 직무교육 중 버튼 선택 1"
         }
     ),
+    token_data=Depends(verify_jwt),
 ):
     xml_data = fetch_education_data()
     filtered_results = parse_education_xml(xml_data, request.category)
@@ -181,6 +216,7 @@ async def policy_recommend(
             "category": "디지털기초역량/사무행정실무/전문기술자격증/서비스 직무교육 중 버튼 선택 1"
         }
     ),
+    token_data=Depends(verify_jwt),
 ):
     policies = recommend_policy_by_category(req.category)
 
@@ -271,7 +307,7 @@ def bookmark_policy(
     summary="자기소개서 세션 시작",
     description="입사할 회사명과 직무를 입력받아 자기소개서 작성을 위한 세션을 초기화하고 첫 번째 질문을 반환.",
 )
-def init(data: ResumeInitRequest):
+def init(data: ResumeInitRequest, token_data=Depends(verify_jwt)):
     """
     입력:
     - company: 지원 회사명
@@ -292,7 +328,7 @@ def init(data: ResumeInitRequest):
     summary="사용자 입력에 대한 AI 응답 생성",
     description="현재 질문에 대한 사용자의 답변을 받아 AI가 해당 항목의 자기소개서 문장을 생성. 이후 다음 질문 항목도 함께 반환.",
 )
-def answer(data: ResumeAnswerRequest):
+def answer(data: ResumeAnswerRequest, token_data=Depends(verify_jwt)):
     """
     입력:
     - session_id: 기존 생성된 세션 ID
@@ -315,7 +351,7 @@ def answer(data: ResumeAnswerRequest):
     description="해당 세션 ID에 대해 지금까지 작성된 모든 자기소개서 항목과 내용을 반환.",
     response_model=ResumeResult,
 )
-def result(session_id: str):
+def result(session_id: str, token_data=Depends(verify_jwt)):
     """
     입력:
     - session_id: 자기소개서 작성 세션 ID
