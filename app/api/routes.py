@@ -180,6 +180,42 @@ def education_search(
 
 
 @router.post(
+    "/api/education/bookmark",
+    summary="교육 정보 북마크",
+    description="사용자가 선택한 교육 정보를 데이터베이스에 북마크로 저장합니다.",
+    response_description="북마크 저장 결과 메시지",
+    responses={
+        200: {
+            "description": "북마크 성공 예시",
+            "content": {
+                "application/json": {"example": {"message": "교육 정보 북마크 성공."}}
+            },
+        }
+    },
+)
+def bookmark_education(
+    data: EducationBookmarkRequest = Body(
+        example={
+            "user_id": 1,
+            "bookmarks": [
+                {
+                    "title": "교육1",
+                    "url": "https://example.com/edu1",
+                },
+                {
+                    "title": "교육2",
+                    "url": "https://example.com/edu2",
+                },
+            ],
+        }
+    ),
+    db: Session = Depends(get_db),
+    token_data=Depends(verify_jwt),
+):
+    return save_bookmarked_education(data, db)
+
+
+@router.post(
     "/api/policy/recommend",
     response_model=PolicyRecommendResponse,
     summary="고용 정책/복지 안내",
@@ -223,42 +259,6 @@ async def policy_recommend(
     return PolicyRecommendResponse(
         message=f"[{req.category}]의 복지 정보는 다음과 같습니다.", results=policies
     )
-
-
-@router.post(
-    "/api/education/bookmark",
-    summary="교육 정보 북마크",
-    description="사용자가 선택한 교육 정보를 데이터베이스에 북마크로 저장합니다.",
-    response_description="북마크 저장 결과 메시지",
-    responses={
-        200: {
-            "description": "북마크 성공 예시",
-            "content": {
-                "application/json": {"example": {"message": "교육 정보 북마크 성공."}}
-            },
-        }
-    },
-)
-def bookmark_education(
-    data: EducationBookmarkRequest = Body(
-        example={
-            "user_id": 1,
-            "bookmarks": [
-                {
-                    "title": "교육1",
-                    "url": "https://example.com/edu1",
-                },
-                {
-                    "title": "교육2",
-                    "url": "https://example.com/edu2",
-                },
-            ],
-        }
-    ),
-    db: Session = Depends(get_db),
-    token_data=Depends(verify_jwt),
-):
-    return save_bookmarked_education(data, db)
 
 
 @router.post(
