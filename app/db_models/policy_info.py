@@ -1,17 +1,19 @@
-from sqlalchemy import Column, Integer, String, Text, ForeignKey
+from sqlalchemy import Column, BigInteger, String, Text, ForeignKey
 from sqlalchemy.orm import relationship
 from app.core.db import Base
+from app.db_models.base_entity import TimestampMixin
 
 
-class PolicyInfo(Base):
-    __tablename__ = "PolicyInfo"
+class PolicyInfo(Base, TimestampMixin):
+    __tablename__ = "policy_info"
 
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(BigInteger, primary_key=True, index=True, autoincrement=True)
+    user_id = Column(
+        BigInteger, ForeignKey("user.id", ondelete="CASCADE"), nullable=False
+    )
+    user = relationship("User", back_populates="policy_infos")
 
-    user_id = Column(Integer, ForeignKey("User.id", ondelete="CASCADE"), nullable=False)
-    user = relationship("User", back_populates="policyInfos")
-
-    category = Column(String(50), nullable=False)
     title = Column(String(50), nullable=False)
+    category = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)
     url = Column(Text, nullable=True)

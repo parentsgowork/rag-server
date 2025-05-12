@@ -1,16 +1,18 @@
-from sqlalchemy import Column, Integer, String, DateTime
+from sqlalchemy import Column, BigInteger, String, DateTime
 from sqlalchemy.orm import relationship
 from app.core.db import Base
-from datetime import datetime
+from app.db_models.base_entity import TimestampMixin
 
 
-class RefreshToken(Base):
-    __tablename__ = "RefreshToken"
+class RefreshToken(Base, TimestampMixin):
+    __tablename__ = "refresh_token"
 
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(BigInteger, primary_key=True, index=True, autoincrement=True)
+    refresh_token = Column(String(512), nullable=False)
+    expiry_date = Column(DateTime, nullable=False)
 
-    refreshToken = Column(String(512), nullable=False)
-
-    expiryDate = Column(DateTime, nullable=False)
-
-    user = relationship("User", back_populates="refreshToken", uselist=False)
+    user = relationship(
+        "User",
+        back_populates="refresh_token",
+        uselist=False,
+    )

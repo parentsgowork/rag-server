@@ -1,21 +1,22 @@
-from sqlalchemy import Column, Integer, String, ForeignKey
+from sqlalchemy import Column, Integer, String, ForeignKey, BigInteger
 from sqlalchemy.orm import relationship
 from app.core.db import Base
+from app.db_models.base_entity import TimestampMixin
 
 
-class Bookmark(Base):
-    __tablename__ = "Bookmark"
+class Bookmark(Base, TimestampMixin):
+    __tablename__ = "bookmark"
 
-    id = Column(Integer, primary_key=True, index=True)
-
-    user_id = Column(Integer, ForeignKey("User.id", ondelete="CASCADE"), nullable=False)
+    id = Column(BigInteger, primary_key=True, index=True, autoincrement=True)
+    user_id = Column(BigInteger, ForeignKey("user.id"), nullable=False)
     user = relationship("User", back_populates="bookmarks")
 
-    jobId = Column(Integer, nullable=True)
-    companyName = Column(String, nullable=True)
-    jobTitle = Column(String, nullable=True)
-    pay = Column(String, nullable=True)
-    time = Column(String, nullable=True)
-    location = Column(String, nullable=True)
-    deadline = Column(String, nullable=True)
-    registrationDate = Column(String, nullable=True)
+    job_id = Column(BigInteger, nullable=True)
+    company_name = Column(String(255), nullable=True)
+    job_title = Column(String(255), nullable=True)
+    pay = Column(String(255), nullable=True)
+    time = Column(String(255), nullable=True)
+    location = Column(String(255), nullable=True)
+    deadline = Column(String(255), nullable=True)
+    registration_date = Column(String(255), nullable=True)
+    detail_url = Column(String(255), nullable=True)

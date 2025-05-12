@@ -24,7 +24,7 @@ class Settings(BaseSettings):
     JWT_SECRET_KEY_BASE64: str
     JWT_ALGORITHM: str = "HS256"
 
-    # ✅ Base64 디코딩된 JWT secret 키
+    #  Base64 디코딩된 JWT secret 키
     @property
     def jwt_secret_bytes(self) -> bytes:
         return base64.b64decode(self.JWT_SECRET_KEY_BASE64)

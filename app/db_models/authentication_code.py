@@ -11,10 +11,9 @@ class CodeStatus(str, enum.Enum):
 
 # AuthenticationCode 모델
 class AuthenticationCode(Base):
-    __tablename__ = "AuthenticationCode"
+    __tablename__ = "authentication_code"
 
     id = Column(Integer, primary_key=True, index=True)
-
     email = Column(String(50), nullable=False)
     code = Column(String, unique=True, nullable=False)
     isVerified = Column(Boolean, nullable=False)

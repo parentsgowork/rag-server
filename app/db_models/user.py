@@ -1,12 +1,12 @@
 from sqlalchemy import Column, Integer, String, Enum as SqlEnum, ForeignKey
 from sqlalchemy.orm import relationship
 from app.core.db import Base
+from app.db_models.refresh_token import RefreshToken
+from app.db_models.base_entity import TimestampMixin
 import enum
-from app.core.db import Base
-
-# ------------------ ENUM 정의 ------------------
 
 
+# ENUM 정의
 class Gender(str, enum.Enum):
     MALE = "MALE"
     FEMALE = "FEMALE"
@@ -40,7 +40,7 @@ class FinalEdu(str, enum.Enum):
         }[self.value]
 
 
-class UserStatus(str, enum.Enum):
+class Status(str, enum.Enum):
     ACTIVE = "ACTIVE"
     INACTIVE = "INACTIVE"
 
@@ -50,34 +50,35 @@ class Role(str, enum.Enum):
     ADMIN = "ADMIN"
 
 
-# ------------------ User 모델 정의 ------------------
-
-
-class User(Base):
-    __tablename__ = "User"
+# User 모델
+class User(Base, TimestampMixin):
+    __tablename__ = "user"
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(20), nullable=False)
-    primaryEmail = Column(String(50), unique=True)
+    primary_email = Column(String(50), unique=True)
     password = Column(String(100), nullable=False)
     age = Column(Integer, nullable=False)
     gender = Column(SqlEnum(Gender), nullable=False)
     region = Column(SqlEnum(Region), nullable=False)
     job = Column(String(50), nullable=False)
     career = Column(Integer, nullable=False)
-    finalEdu = Column(SqlEnum(FinalEdu), nullable=False)
-    status = Column(SqlEnum(UserStatus), nullable=False)
+    final_edu = Column(SqlEnum(FinalEdu), nullable=False)
+    status = Column(SqlEnum(Status), nullable=False)
     role = Column(SqlEnum(Role), nullable=True)
-    refresh_token_id = Column(Integer, ForeignKey("RefreshToken.id"), nullable=True)
-    refreshToken = relationship("RefreshToken", back_populates="user", uselist=False)
+
+    refresh_token_id = Column(Integer, ForeignKey("refresh_token.id"), nullable=True)
+
+    refresh_token = relationship("RefreshToken", back_populates="user", uselist=False)
 
     bookmarks = relationship(
         "Bookmark", back_populates="user", cascade="all, delete-orphan"
     )
-    policyInfos = relationship(
+    policy_infos = relationship(
         "PolicyInfo", back_populates="user", cascade="all, delete-orphan"
     )
-    educationInfos = relationship(
+
+    education_infos = relationship(
         "EducationInfo", back_populates="user", cascade="all, delete-orphan"
     )
     resumes = relationship(
