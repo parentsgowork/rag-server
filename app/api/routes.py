@@ -50,13 +50,9 @@ from app.models.jobSchemas import JobRecommendation
 router = APIRouter()
 
 
-@router.get("/ping")
-async def ping():
-    return {"message": "pong"}
-
-
 @router.get(
     "/api/job/recommend",
+    tags=["사용자 맞춤 구직 추천"],
     response_model=list[JobRecommendation],
     summary="사용자 맞춤 구직 추천",
     description="user_id에 기반하여 서울시 구인공고 중 사용자 조건에 맞는 구직 정보를 추천하고, 각 항목에 대해 GPT 기반 설명을 포함하여 반환합니다.",
@@ -95,6 +91,7 @@ def recommend_job_for_user(
 
 @router.post(
     "/api/reemployment/analyze",
+    tags=["재취업 가능성 분석"],
     response_model=ReemploymentResponse,
     summary="재취업 가능성 분석",
     description="GPT 기반 분석을 통해, 연령/업종/성별에 따른 재취업 가능성을 분석",
@@ -128,6 +125,7 @@ async def reemployment_analysis_endpoint(
 
 @router.post(
     "/api/education/search",
+    tags=["교육 정보"],
     response_model=EducationSearchResponse,
     summary="맞춤형 교육 정보 제공",
     description="선택한 카테고리에 맞는 중장년층 교육 프로그램 정보를 제공",
@@ -181,6 +179,7 @@ def education_search(
 
 @router.post(
     "/api/education/bookmark",
+    tags=["교육 정보"],
     summary="교육 정보 북마크",
     description="사용자가 선택한 교육 정보를 데이터베이스에 북마크로 저장합니다.",
     response_description="북마크 저장 결과 메시지",
@@ -217,6 +216,7 @@ def bookmark_education(
 
 @router.post(
     "/api/policy/recommend",
+    tags=["고용 정책/복지"],
     response_model=PolicyRecommendResponse,
     summary="고용 정책/복지 안내",
     description="선택한 복지 카테고리에 맞는 고용 정책 정보를 GPT 기반 RAG 시스템으로 추천.",
@@ -263,6 +263,7 @@ async def policy_recommend(
 
 @router.post(
     "/api/policy/bookmark",
+    tags=["고용 정책/복지"],
     summary="복지 정보 북마크",
     description="사용자가 선택한 복지 정보를 데이터베이스에 북마크로 저장합니다.",
     response_description="북마크 저장 결과 메시지",
@@ -304,6 +305,7 @@ def bookmark_policy(
 # 세션 생성 및 첫 번째 질문 반환
 @router.post(
     "/api/resume/init",
+    tags=["AI 자기소개서"],
     summary="자기소개서 세션 시작",
     description="입사할 회사명과 직무를 입력받아 자기소개서 작성을 위한 세션을 초기화하고 첫 번째 질문을 반환.",
 )
@@ -325,6 +327,7 @@ def init(data: ResumeInitRequest, token_data=Depends(verify_jwt)):
 # 사용자 입력 저장 + 해당 항목의 GPT 응답 생성 -> 다음 질문 반환
 @router.post(
     "/api/resume/answer",
+    tags=["AI 자기소개서"],
     summary="사용자 입력에 대한 AI 응답 생성",
     description="현재 질문에 대한 사용자의 답변을 받아 AI가 해당 항목의 자기소개서 문장을 생성. 이후 다음 질문 항목도 함께 반환.",
 )
@@ -347,6 +350,7 @@ def answer(data: ResumeAnswerRequest, token_data=Depends(verify_jwt)):
 # 완성된 자기소개서 반환
 @router.get(
     "/api/resume/result/{session_id}",
+    tags=["AI 자기소개서"],
     summary="최종 자기소개서 결과 조회",
     description="해당 세션 ID에 대해 지금까지 작성된 모든 자기소개서 항목과 내용을 반환.",
     response_model=ResumeResult,
@@ -365,6 +369,7 @@ def result(session_id: str, token_data=Depends(verify_jwt)):
 
 @router.post(
     "/api/resume/save",
+    tags=["AI 자기소개서"],
     summary="자기소개서 저장",
     description="완성된 자기소개서를 DB에 저장합니다. 저장된 content는 JSON 문자열로 저장되며, resume_category와 제목도 함께 저장됩니다.",
     response_description="저장 결과 메시지 및 생성된 resume_id",
@@ -414,6 +419,7 @@ def save_resume(
 
 @router.get(
     "/api/resume/user/{userId}",
+    tags=["AI 자기소개서"],
     response_model=list[ResumeResult],
     summary="사용자의 자기소개서 목록 조회",
     description="특정 user_id에 해당하는 사용자가 저장한 자기소개서 리스트를 조회합니다. 각 자기소개서는 title과 sections(JSON 파싱된 dict 형태)로 반환됩니다.",
@@ -452,3 +458,8 @@ def get_user_resumes(
     userId: int, db: Session = Depends(get_db), token_data=Depends(verify_jwt)
 ):
     return get_resumes_by_user_id(db, userId)
+
+
+@router.get("/ping")
+async def ping():
+    return {"message": "pong"}
