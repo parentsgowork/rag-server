@@ -12,7 +12,7 @@ app = FastAPI(title="RAG Chatbot API", description="RAG 챗봇 API", version="0.
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://parentsgowork.vercel.app"],
+    allow_origins=["https://parentsgowork.vercel.app", "http://localhost:5173"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
