@@ -2,17 +2,18 @@ from sqlalchemy import Column, Integer, String, Enum as SqlEnum, ForeignKey
 from sqlalchemy.orm import relationship
 from app.core.db import Base
 import enum
-from app.core.db import Base
+from app.db_models.refresh_token import RefreshToken
+from app.db_models.base_entity import TimestampMixin
 
 # ------------------ ENUM 정의 ------------------
 
 
-class Gender(str, enum.Enum):
+class gender(str, enum.Enum):
     MALE = "MALE"
     FEMALE = "FEMALE"
 
 
-class Region(str, enum.Enum):
+class region(str, enum.Enum):
     SEOUL = "SEOUL"
     GYEONGGI = "GYEONGGI"
     INCHEON = "INCHEON"
@@ -22,7 +23,7 @@ class Region(str, enum.Enum):
     CHUNGBUK = "CHUNGBUK"
 
 
-class FinalEdu(str, enum.Enum):
+class final_edu(str, enum.Enum):
     HIGH_SCHOOL = "HIGH_SCHOOL"
     ASSOCIATE = "ASSOCIATE"
     BACHELOR = "BACHELOR"
@@ -40,12 +41,12 @@ class FinalEdu(str, enum.Enum):
         }[self.value]
 
 
-class UserStatus(str, enum.Enum):
+class status(str, enum.Enum):
     ACTIVE = "ACTIVE"
     INACTIVE = "INACTIVE"
 
 
-class Role(str, enum.Enum):
+class role(str, enum.Enum):
     USER = "USER"
     ADMIN = "ADMIN"
 
@@ -53,23 +54,31 @@ class Role(str, enum.Enum):
 # ------------------ User 모델 정의 ------------------
 
 
-class User(Base):
-    __tablename__ = "User"
+class User(Base, TimestampMixin):
+    __tablename__ = "user"
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(20), nullable=False)
-    primaryEmail = Column(String(50), unique=True)
+    primary_email = Column(String(50), unique=True)
     password = Column(String(100), nullable=False)
     age = Column(Integer, nullable=False)
-    gender = Column(SqlEnum(Gender), nullable=False)
-    region = Column(SqlEnum(Region), nullable=False)
+    gender = Column(SqlEnum(gender), nullable=False)
+    region = Column(SqlEnum(region), nullable=False)
     job = Column(String(50), nullable=False)
     career = Column(Integer, nullable=False)
-    finalEdu = Column(SqlEnum(FinalEdu), nullable=False)
-    status = Column(SqlEnum(UserStatus), nullable=False)
-    role = Column(SqlEnum(Role), nullable=True)
-    refresh_token_id = Column(Integer, ForeignKey("RefreshToken.id"), nullable=True)
-    refreshToken = relationship("RefreshToken", back_populates="user", uselist=False)
+    final_edu = Column(SqlEnum(final_edu), nullable=False)
+    status = Column(SqlEnum(status), nullable=False)
+    role = Column(SqlEnum(role), nullable=True)
+
+    refresh_token_id = Column(Integer, ForeignKey("refresh_token.id"), nullable=True)
+
+    refreshToken = relationship(
+        "RefreshToken",
+        back_populates="user",
+        uselist=False,
+        foreign_keys=[refresh_token_id],
+        primaryjoin="User.refresh_token_id==RefreshToken.id",
+    )
 
     bookmarks = relationship(
         "Bookmark", back_populates="user", cascade="all, delete-orphan"

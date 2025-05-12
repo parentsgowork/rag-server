@@ -29,14 +29,12 @@ class ResumeCategory(str, enum.Enum):
 
 
 class Resume(Base):
-    __tablename__ = "Resume"
+    __tablename__ = "resume"
 
     id = Column(Integer, primary_key=True, index=True)
-
-    user_id = Column(Integer, ForeignKey("User.id", ondelete="CASCADE"), nullable=False)
+    user_id = Column(Integer, ForeignKey("user.id", ondelete="CASCADE"), nullable=False)
     user = relationship("User", back_populates="resumes")
 
     title = Column(String(50), nullable=False)
     content = Column(Text, nullable=False)
-
     resumeCategory = Column(SqlEnum(ResumeCategory), nullable=False)

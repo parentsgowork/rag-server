@@ -11,8 +11,8 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 # BaseEntity에 해당하는 공통 필드 믹스인
 class BaseEntity:
-    createdAt = Column(DateTime, default=func.now(), nullable=False)
-    updatedAt = Column(
+    created_at = Column(DateTime, default=func.now(), nullable=False)
+    updated_at = Column(
         DateTime, default=func.now(), onupdate=func.now(), nullable=False
     )
 

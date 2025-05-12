@@ -1,126 +1,139 @@
-from app.core.config import settings
 import requests
 import xml.etree.ElementTree as ET
-from app.models.jobSchemas import JobSummary
-import openai
+from sqlalchemy.orm import Session
+from app.db_models.user import User
+from app.core.config import settings
+from app.models.jobSchemas import JobRecommendation
+from openai import OpenAI
 
-# 카테고리명 직종 코드 매핑
-CATEGORY_CODE_MAP = {
-    "사무직": "024",
-    "서비스직": "050",
-    "기술직": "121",
-    "판매직": "062",
+REGION_KR_MAP = {
+    "SEOUL": "서울",
+    "GYEONGGI": "경기",
+    "INCHEON": "인천",
+    "GANGWON": "강원",
+    "DAEJEON": "대전",
+    "SEJONG": "세종",
+    "CHUNGBUK": "충북",
 }
 
-API_KEY = settings.JOB_INFO_KEY
-API_URL = settings.JOB_INFO_URL
-OPENAI_API_KEY = settings.OPENAI_API_KEY
-
-openai.api_key = OPENAI_API_KEY
-
-
-def fetch_job_data(category: str, region=None, career=None, education=None, empTp=None):
-    code = CATEGORY_CODE_MAP.get(category)
-    if not code:
-        return {"error": f"[{category}]는 지원되지 않는 직종입니다."}
-
-    params = {
-        "authKey": API_KEY,
-        "callTp": "L",
-        "returnType": "XML",
-        "startPage": 1,
-        "display": 5,  # 처리 속도 고려해 5건 제한
-        "occupation": code,
-        "pfPreferential": "B",
-    }
-
-    if region:
-        params["region"] = region
-    if career:
-        params["career"] = career
-        params["minCareerM"] = 0
-        params["maxCareerM"] = 999
-    if education:
-        params["education"] = education
-    if empTp:
-        params["empTp"] = empTp
-
-    response = requests.get(API_URL, params=params)
-    print("호출된 URL:", response.url)
-    print("응답 내용 일부:", response.text[:500])
-    if response.status_code != 200:
-        return {"error": "공공 API 호출 실패"}
-
-    jobs = parse_job_xml(response.content)
-
-    if not jobs:
-        return {"message": "조회된 구직 정보가 없습니다."}
-
-    # 각 항목마다 GPT 설명 추가
-    summaries = [summarize_job(job) for job in jobs]
-
-    return {"count": len(summaries), "results": summaries}
+EDU_CODE_MAP = {
+    "HIGH_SCHOOL": "J00106",
+    "ASSOCIATE": "J00108",
+    "BACHELOR": "J00110",
+    "MASTER": "J00114",
+    "DOCTOR": "J00114",
+}
 
 
-def parse_job_xml(xml_data):
-    root = ET.fromstring(xml_data)
-    rows = root.findall(".//wanted")
-
-    results = []
-    for row in rows:
-        job = {
-            "title": row.findtext("title", "제목 없음"),
-            "company": row.findtext("company", ""),
-            "sal_type": row.findtext("salTpNm", ""),
-            "salary": row.findtext("sal", ""),
-            "region": row.findtext("region", ""),
-            "work_type": row.findtext("holidayTpNm", ""),
-            "education": row.findtext("minEdubg", ""),
-            "career": row.findtext("career", ""),
-            "reg_date": row.findtext("regDt", ""),
-            "close_date": row.findtext("closeDt", ""),
-        }
-        results.append(job)
-
-    return results
+def get_career_code(career: int):
+    if career == 0:
+        return "J01301"
+    elif career > 0:
+        return "J01302"
+    return "J01300"
 
 
-def summarize_job(job: dict) -> JobSummary:
-    info = (
-        f"채용 제목: {job['title']}\n"
-        f"회사명: {job['company']}\n"
-        f"임금형태: {job['sal_type']}\n"
-        f"급여: {job['salary']}\n"
-        f"근무지역: {job['region']}\n"
-        f"근무형태: {job['work_type']}\n"
-        f"최소학력: {job['education']}\n"
-        f"경력 요건: {job['career']}\n"
-        f"등록일: {job['reg_date']}\n"
-        f"마감일: {job['close_date']}\n"
-    )
-
+def select_top_jobs_by_gpt(user, jobs: list[dict]) -> list[dict]:
+    """GPT를 통해 사용자에게 가장 적합한 상위 3개 공고를 선택"""
     prompt = (
-        "다음은 채용 공고의 상세 정보입니다.\n"
-        "내용을 기반으로, 구직자가 이해할 수 있도록 객관적으로 설명해 주세요.\n"
-        "추측, 조언, 의견 없이 사실만 정리해주세요.\n\n"
-        f"{info}"
+        f"사용자 정보:\n"
+        f"- 직무: {user.job}\n"
+        f"- 지역: {REGION_KR_MAP.get(user.region.name, '')}\n"
+        f"- 학력: {user.final_edu.name}\n"
+        f"- 경력: {user.career}년\n\n"
+        f"아래는 채용 공고 목록입니다. 사용자에게 가장 적합한 3개 공고를 골라 JSON 배열 형태로 반환해주세요. "
+        f"각 항목은 'JO_REGIST_NO'만 포함하고, 주관적인 판단 없이 정보 기반으로 판단해주세요.\n\n"
     )
 
-    # 디버깅용
-    print(info)
+    for job in jobs:
+        prompt += f"- 공고번호: {job['JO_REGIST_NO']}, 직무: {job['JO_SJ']}, 지역: {job['WORK_PARAR_BASS_ADRES_CN']}, 경력조건: {job['CAREER_CND_NM']}, 학력조건: {job['ACDMCR_NM']}\n"
 
-    response = openai.ChatCompletion.create(
-        model="gpt-3.5-turbo",
+    prompt += '\n결과 예시:\n["K12345", "K23456", "K34567"]'
+
+    client = OpenAI(api_key=settings.OPENAI_API_KEY)
+    response = client.chat.completions.create(
+        model="gpt-4",
+        messages=[{"role": "user", "content": prompt}],
         temperature=0,
-        max_tokens=300,
-        messages=[
-            {
-                "role": "system",
-                "content": "당신은 채용 공고 정보를 설명해주는 AI입니다.",
-            },
-            {"role": "user", "content": prompt},
-        ],
     )
 
-    summary = response.choices[0].message["content"]
-    return JobSummary(title=job["title"], description=summary)
+    try:
+        selected_ids = eval(response.choices[0].message.content.strip())
+        return [job for job in jobs if job["JO_REGIST_NO"] in selected_ids]
+    except Exception:
+        return jobs[:3]
+
+
+def generate_description_gpt(job_title, company_name, job_content, user_job):
+    prompt = (
+        f"사용자의 관심 직무는 '{user_job}'입니다. "
+        f"다음은 {company_name}의 '{job_title}' 직무에 대한 상세 설명입니다:\n"
+        f"{job_content}\n\n"
+        f"이 정보를 바탕으로 우대사항과 직무의 특징을 요약해 주세요. 감정이나 판단 없이 설명만 해주세요."
+    )
+
+    client = OpenAI(api_key=settings.OPENAI_API_KEY)
+    response = client.chat.completions.create(
+        model="gpt-4",
+        messages=[{"role": "user", "content": prompt}],
+        temperature=0.7,
+    )
+    return response.choices[0].message.content.strip()
+
+
+def recommend_jobs(user_id: int, db: Session) -> list[JobRecommendation]:
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        return []
+
+    user_region_kr = REGION_KR_MAP.get(user.region.name, "")
+    job_keyword = user.job.strip()
+
+    url = f"http://openapi.seoul.go.kr:8088/{settings.seoul_openapi_key}/xml/GetJobInfo/1/200/"
+    response = requests.get(url)
+    if response.status_code != 200:
+        return []
+
+    root = ET.fromstring(response.content)
+    filtered_jobs = []
+
+    for row in root.findall(".//row"):
+        title = row.findtext("JO_SJ", "").strip()
+        if job_keyword not in title:
+            continue
+
+        region_text = row.findtext("WORK_PARAR_BASS_ADRES_CN", "")
+        if user_region_kr not in region_text:
+            continue
+
+        job_dict = {child.tag: child.text for child in row}
+        filtered_jobs.append(job_dict)
+
+    # GPT가 최적의 공고 3개 선택
+    top_jobs = select_top_jobs_by_gpt(user, filtered_jobs)
+
+    recommendations = []
+    for job in top_jobs:
+        description = generate_description_gpt(
+            job_title=job.get("JO_SJ", ""),
+            company_name=job.get("CMPNY_NM", ""),
+            job_content=job.get("DTY_CN", ""),
+            user_job=user.job.strip(),
+        )
+
+        recommendations.append(
+            JobRecommendation(
+                jo_reqst_no=job.get("JO_REQST_NO", ""),
+                jo_regist_no=job.get("JO_REGIST_NO", ""),
+                company_name=job.get("CMPNY_NM", ""),
+                job_title=job.get("JO_SJ", ""),
+                description=description,
+                deadline=job.get("RCEPT_CLOS_NM", ""),
+                location=job.get("WORK_PARAR_BASS_ADRES_CN", ""),
+                pay=job.get("HOPE_WAGE", ""),
+                registration_date=job.get("JO_REG_DT", ""),
+                time=job.get("WORK_TIME_NM", ""),
+            )
+        )
+
+    return recommendations

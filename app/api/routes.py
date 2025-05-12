@@ -44,6 +44,8 @@ from app.services.policy_service import (
     save_policy_bookmarks,
 )
 
+from app.services.job_service import recommend_jobs
+from app.models.jobSchemas import JobRecommendation
 
 router = APIRouter()
 
@@ -51,6 +53,11 @@ router = APIRouter()
 @router.get("/ping")
 async def ping():
     return {"message": "pong"}
+
+
+@router.get("/api/job/recommend", response_model=list[JobRecommendation])
+def recommend_job_for_user(user_id: int, db: Session = Depends(get_db)):
+    return recommend_jobs(user_id, db)
 
 
 @router.post(
@@ -406,7 +413,6 @@ def save_resume(
     },
 )
 def get_user_resumes(
-    userId: int,
-    db: Session = Depends(get_db),
-    token_data=Depends(verify_jwt)):
+    userId: int, db: Session = Depends(get_db), token_data=Depends(verify_jwt)
+):
     return get_resumes_by_user_id(db, userId)

@@ -3,8 +3,8 @@ from datetime import datetime
 
 
 class TimestampMixin(BaseModel):
-    createdAt: datetime
-    updatedAt: datetime
+    created_at: datetime
+    updated_at: datetime
 
     class Config:
-        orm_mode = True
+        from_attributes = True

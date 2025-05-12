@@ -4,11 +4,10 @@ from app.core.db import Base
 
 
 class Bookmark(Base):
-    __tablename__ = "Bookmark"
+    __tablename__ = "bookmark"
 
     id = Column(Integer, primary_key=True, index=True)
-
-    user_id = Column(Integer, ForeignKey("User.id", ondelete="CASCADE"), nullable=False)
+    user_id = Column(Integer, ForeignKey("user.id"), nullable=False)
     user = relationship("User", back_populates="bookmarks")
 
     jobId = Column(Integer, nullable=True)
