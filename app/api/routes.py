@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, Body, Query
+from app.utils.jwt import verify_jwt
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 
@@ -212,6 +213,7 @@ def bookmark_education(
         }
     ),
     db: Session = Depends(get_db),
+    token_data=Depends(verify_jwt),
 ):
     return save_bookmarked_education(data, db)
 
@@ -251,6 +253,7 @@ def bookmark_policy(
         }
     ),
     db: Session = Depends(get_db),
+    token_data=Depends(verify_jwt),
 ):
     return save_policy_bookmarks(data, db)
 
@@ -360,6 +363,7 @@ def save_resume(
         }
     ),
     db: Session = Depends(get_db),
+    token_data=Depends(verify_jwt),
 ):
     saved = save_resume_to_db(db, data)
     return {"resume_id": saved.id, "message": "자기소개서가 저장되었습니다."}
@@ -401,5 +405,8 @@ def save_resume(
         },
     },
 )
-def get_user_resumes(userId: int, db: Session = Depends(get_db)):
+def get_user_resumes(
+    userId: int,
+    db: Session = Depends(get_db),
+    token_data=Depends(verify_jwt)):
     return get_resumes_by_user_id(db, userId)
