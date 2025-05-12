@@ -1,6 +1,7 @@
 from pydantic import BaseModel
 from typing import Dict
 from enum import Enum
+from app.models.common import TimestampMixin
 
 
 class ResumeInitRequest(BaseModel):
@@ -24,12 +25,12 @@ class ResumeCategory(str, Enum):
     ACADEMIC = "ACADEMIC"
 
 
-class ResumeResult(BaseModel):
+class ResumeResult(TimestampMixin):
     title: str
     sections: Dict[str, str]
 
 
-class ResumeSaveRequest(BaseModel):
+class ResumeSaveRequest(TimestampMixin):
     user_id: int
     title: str
     sections: Dict[str, str]

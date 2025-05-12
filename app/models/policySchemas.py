@@ -1,5 +1,6 @@
 from pydantic import BaseModel
 from typing import List
+from app.models.common import TimestampMixin
 
 
 class PolicyRecommendRequest(BaseModel):
@@ -24,6 +25,6 @@ class PolicyItem(BaseModel):
     url: str
 
 
-class PolicySaveRequest(BaseModel):
+class PolicySaveRequest(TimestampMixin):
     user_id: int
     policies: List[PolicyItem]

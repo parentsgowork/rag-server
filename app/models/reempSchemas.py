@@ -1,6 +1,7 @@
 # Pydantic Request/Response 모델
 from pydantic import BaseModel
 from typing import List, Dict, Optional
+from app.models.common import TimestampMixin
 
 
 class ReemploymentRequest(BaseModel):
