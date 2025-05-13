@@ -249,7 +249,7 @@ def bookmark_education(
 async def policy_recommend(
     req: PolicyRecommendRequest = Body(
         example={
-            "category": "디지털기초역량/사무행정실무/전문기술자격증/서비스 직무교육 중 버튼 선택 1"
+            "category": "취업 지원금/직업 훈련 지원/고용 안정 지원/생활 안정 지원 중 버튼 선택 1"
         }
     ),
     token_data=Depends(verify_jwt),

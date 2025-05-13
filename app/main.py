@@ -1,4 +1,3 @@
-# fast api 앱 실행 파일
 from fastapi import FastAPI
 from app.api import routes
 from fastapi.middleware.cors import CORSMiddleware
