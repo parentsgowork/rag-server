@@ -5,7 +5,7 @@ from langchain_openai import OpenAIEmbeddings
 from langchain_pinecone import PineconeVectorStore
 from pinecone import Pinecone, ServerlessSpec
 from app.core.config import settings
-
+# test
 
 # PDF → 문서 추출 → 청크 분할 → 임베딩 → Pinecone 업로드
 def ingest_policy_pdf():
