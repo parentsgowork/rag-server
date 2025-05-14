@@ -27,6 +27,6 @@ class EducationItem(BaseModel):
     url: str
 
 
-class EducationBookmarkRequest(TimestampMixin):
+class EducationBookmarkRequest(BaseModel):
     user_id: int
     bookmarks: List[EducationItem]

@@ -5,6 +5,7 @@ from langchain.prompts import PromptTemplate
 from langchain_openai import ChatOpenAI
 from app.db_models.resume import Resume
 from app.models.resumeSchemas import ResumeSaveRequest
+from app.models.resumeSchemas import ResumeResult
 
 llm = ChatOpenAI(model="gpt-4", temperature=0.7)
 
@@ -152,7 +153,7 @@ def save_resume_to_db(db: Session, data: ResumeSaveRequest):
     return resume
 
 
-def get_resumes_by_user_id(db: Session, user_id: int):
+def get_resumes_by_user_id(db: Session, user_id: int) -> list[ResumeResult]:
     resumes = db.query(Resume).filter(Resume.user_id == user_id).all()
     result = []
     for r in resumes:
@@ -160,5 +161,13 @@ def get_resumes_by_user_id(db: Session, user_id: int):
             content_dict = json.loads(r.content)
         except json.JSONDecodeError:
             content_dict = {}
-        result.append({"title": r.title, "sections": content_dict})
+
+        result.append(
+            ResumeResult(
+                title=r.title,
+                sections=content_dict,
+                created_at=r.created_at,
+                updated_at=r.updated_at,
+            )
+        )
     return result
