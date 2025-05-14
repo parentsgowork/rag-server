@@ -25,6 +25,6 @@ class PolicyItem(BaseModel):
     url: str
 
 
-class PolicySaveRequest(TimestampMixin):
+class PolicySaveRequest(BaseModel):
     user_id: int
     policies: List[PolicyItem]
