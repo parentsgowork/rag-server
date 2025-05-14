@@ -7,7 +7,6 @@ from langchain_pinecone import PineconeVectorStore
 from pinecone import Pinecone
 from app.core.config import settings
 
-# 실제 업종 데이터 기준 리스트
 FIELDS_IN_DATA = [
     "농업 임업 및 어업",
     "광업",
@@ -31,9 +30,7 @@ FIELDS_IN_DATA = [
     "국제 및 외국기관",
 ]
 
-# 비공식 업종 표현 → 공식 업종명 매핑
 FIELD_ALIAS_MAP = {
-    # 정보통신
     "it": "정보통신업",
     "it업종": "정보통신업",
     "정보통신": "정보통신업",
@@ -42,60 +39,50 @@ FIELD_ALIAS_MAP = {
     "소프트웨어": "정보통신업",
     "데이터": "정보통신업",
     "코딩": "정보통신업",
-    # 제조
     "제조": "제조업",
     "공장": "제조업",
     "생산직": "제조업",
     "라인": "제조업",
-    # 건설
     "건설": "건설업",
     "현장": "건설업",
     "시공": "건설업",
     "토목": "건설업",
     "건축": "건설업",
-    # 운수 및 창고
     "운송": "운수 및 창고업",
     "운수": "운수 및 창고업",
     "택배": "운수 및 창고업",
     "물류": "운수 및 창고업",
     "배송": "운수 및 창고업",
     "화물": "운수 및 창고업",
-    # 교육
     "교육": "교육 서비스업",
     "학교": "교육 서비스업",
     "강사": "교육 서비스업",
     "교사": "교육 서비스업",
     "학원": "교육 서비스업",
-    # 복지·보건
     "복지": "보건업 및 사회복지 서비스업",
     "간호": "보건업 및 사회복지 서비스업",
     "병원": "보건업 및 사회복지 서비스업",
     "요양": "보건업 및 사회복지 서비스업",
     "돌봄": "보건업 및 사회복지 서비스업",
     "요양보호사": "보건업 및 사회복지 서비스업",
-    # 서비스
     "서비스": "사업시설 관리 사업 지원 및 임대 서비스업",
     "청소": "사업시설 관리 사업 지원 및 임대 서비스업",
     "경비": "사업시설 관리 사업 지원 및 임대 서비스업",
     "미화": "사업시설 관리 사업 지원 및 임대 서비스업",
     "보안": "사업시설 관리 사업 지원 및 임대 서비스업",
-    # 금융
     "금융": "금융 및 보험업",
     "은행": "금융 및 보험업",
     "보험": "금융 및 보험업",
     "증권": "금융 및 보험업",
-    # 공공행정
     "공무원": "공공행정 국방 및 사회보장 행정",
     "행정": "공공행정 국방 및 사회보장 행정",
     "관공서": "공공행정 국방 및 사회보장 행정",
-    # 국제기구
     "외국기관": "국제 및 외국기관",
     "국제": "국제 및 외국기관",
     "외교": "국제 및 외국기관",
 }
 
-
-_llm_cache = None  # LLM 캐싱
+_llm_cache = None
 
 
 def get_llm(model="gpt-3.5-turbo"):
@@ -136,7 +123,11 @@ def extract_field_and_gender(question: str):
         [
             (
                 "system",
-                '사용자의 질문에서 재취업 관련 업종(예: 제조업, 광업)과 성별(남성 또는 여성)을 JSON으로 추출하세요. 예시: {{"field": "광업", "gender": "남성"}} 명확하지 않으면 각각 \'일반\', \'모름\'으로 표시하세요.',
+                "당신은 사용자의 문장에서 업종과 성별을 추출해야 합니다.\n"
+                '- 업종 예시: 농민 → "농업 임업 및 어업", 개발자 → "정보통신업", 교사 → "교육 서비스업", 예술가 → "예술 스포츠 및 여가관련 서비스업\n'
+                '- 성별 예시: 남자, 남성 → "남성", 여자, 여성 → "여성"\n'
+                '- JSON 형식으로 출력. 예시: {{"field": "농업 임업 및 어업", "gender": "남성"}}\n'
+                '- 명확하지 않으면 각각 "일반", "모름"으로 작성하세요.',
             ),
             ("human", "{input}"),
         ]
@@ -159,7 +150,7 @@ def extract_field_and_gender(question: str):
 
 def get_field_stats(field: str, gender: str):
     retriever = get_vectorstore().as_retriever(
-        search_kwargs={"k": 1, "filter": {"field": field, "age_group": "55세 이상"}}
+        search_kwargs={"k": 3, "filter": {"field": field, "age_group": "55세 이상"}}
     )
     docs = retriever.invoke(f"{field} 업종의 55세 이상 {gender} 근로자 수는?")
     if not docs:
@@ -175,7 +166,13 @@ def get_field_stats(field: str, gender: str):
         male = int(content.split("남성은")[1].split("명")[0].strip().replace(",", ""))
         female = int(content.split("여성은")[1].split("명")[0].strip().replace(",", ""))
         target = male if gender == "남성" else female
-        return {"total": total, "target": target, "raw": content}
+        return {
+            "total": total,
+            "male": male,
+            "female": female,
+            "target": target,
+            "raw": content,
+        }
     except Exception as e:
         print("파싱 오류:", e)
         return None
@@ -200,32 +197,33 @@ def analyze_reemployment(field: str, stats: dict, gender: str):
     return score, market_fit, summary
 
 
-def generate_gpt_summary(context: str):
+def generate_gpt_summary(context: dict):
     llm = get_llm()
     prompt = ChatPromptTemplate.from_messages(
         [
             (
                 "system",
-                "다음은 고령 근로자 통계 및 분석 점수입니다.\n이 정보를 바탕으로 사용자가 이해하기 쉽고 일관된 재취업 가능성 설명을 제공해 주세요.\n"
-                "점수는 {재취업 점수}점, 시장 적합도는 '{시장 적합도}'입니다.",
+                "당신은 고용 통계 보고서를 작성하는 데이터 분석가입니다. 아래 지침에 따라 통계 기반 요약을 작성하세요:\n"
+                "- 첫 문장: 업종의 전체 근로자 수와 고령자 수\n"
+                "- 두 번째 문장: 특정 성별 고령자 수와 전체 대비 비율\n"
+                "- 세 번째 문장: 해당 산업에서 재취업 기회에 대한 한 줄 요약 (예: 재취업 기회가 다소 제한적일 수 있습니다.)\n"
+                "- 네 번째 문장: 재취업 점수와 시장 적합도 수치\n"
+                "- 감성적 표현, 장황한 해석은 금지\n",
             ),
             ("human", "{input}"),
         ]
     )
-    structured = (
+
+    input_text = (
         f"{context['업종']} 업종의 전체 근로자 수는 {context['전체 근로자 수']}명이며, "
-        f"{context['대상 성별']} 고령자는 {context['대상 인원']}명입니다. "
-        f"점수는 {context['재취업 점수']}점이고, 시장 적합도는 '{context['시장 적합도']}'입니다."
+        f"55세 이상 고령자는 {context['고령자 수']}명입니다. "
+        f"{context['대상 성별']} 고령자는 {context['대상 인원']}명으로 전체의 약 {context['비율']}%입니다. "
+        f"이 업종은 재취업 기회가 다소 제한적일 수 있습니다. "
+        f"재취업 점수는 {context['재취업 점수']}점이고, 시장 적합도는 '{context['시장 적합도']}'입니다."
     )
 
     chain = prompt | llm | StrOutputParser()
-    return chain.invoke(
-        {
-            "input": structured,
-            "재취업 점수": context["재취업 점수"],
-            "시장 적합도": context["시장 적합도"],
-        }
-    )
+    return chain.invoke({"input": input_text})
 
 
 def get_final_reemployment_analysis(user_question: str):
@@ -241,12 +239,17 @@ def get_final_reemployment_analysis(user_question: str):
         }
 
     score, fit, summary = analyze_reemployment(field, stats, gender)
+    ratio = (
+        round((stats["target"] / stats["total"]) * 100, 1) if stats["total"] > 0 else 0
+    )
 
     context = {
         "업종": field,
         "전체 근로자 수": stats["total"],
+        "고령자 수": stats["male"] + stats["female"],
         "대상 성별": gender,
         "대상 인원": stats["target"],
+        "비율": ratio,
         "재취업 점수": score,
         "시장 적합도": fit,
     }
