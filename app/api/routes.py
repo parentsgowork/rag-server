@@ -398,7 +398,6 @@ def result(session_id: str, token_data=Depends(verify_jwt)):
 def save_resume(
     data: ResumeSaveRequest = Body(
         example={
-            "user_id": 1,
             "title": "삼성전자 백엔드 개발자 지원 자기소개서",
             "sections": {
                 "성장과정": "...",
@@ -413,7 +412,8 @@ def save_resume(
     db: Session = Depends(get_db),
     token_data=Depends(verify_jwt),
 ):
-    saved = save_resume_to_db(db, data)
+    user_id = token_data["userId"]
+    saved = save_resume_to_db(user_id, db, data)
     return {"resume_id": saved.id, "message": "자기소개서가 저장되었습니다."}
 
 
