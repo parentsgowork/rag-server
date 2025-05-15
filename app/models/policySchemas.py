@@ -26,5 +26,4 @@ class PolicyItem(BaseModel):
 
 
 class PolicySaveRequest(BaseModel):
-    user_id: int
     policies: List[PolicyItem]

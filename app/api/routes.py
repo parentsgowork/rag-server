@@ -279,7 +279,6 @@ async def policy_recommend(
 def bookmark_policy(
     data: PolicySaveRequest = Body(
         example={
-            "user_id": 1,
             "policies": [
                 {
                     "title": "정책1",
@@ -299,7 +298,8 @@ def bookmark_policy(
     db: Session = Depends(get_db),
     token_data=Depends(verify_jwt),
 ):
-    return save_policy_bookmarks(data, db)
+    user_id = token_data["userId"]
+    return save_policy_bookmarks(user_id, data, db)
 
 
 # 세션 생성 및 첫 번째 질문 반환

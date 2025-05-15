@@ -169,10 +169,10 @@ def recommend_policy_by_category(category: str) -> list[dict]:
     return results
 
 
-def save_policy_bookmarks(data: PolicySaveRequest, db: Session):
+def save_policy_bookmarks(user_id: int, data: PolicySaveRequest, db: Session):
     for policy in data.policies:
         info = PolicyInfo(
-            user_id=data.user_id,
+            user_id=user_id,
             category=policy.category,
             title=policy.title,
             description=policy.description,
