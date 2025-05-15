@@ -371,7 +371,7 @@ def result(session_id: str, token_data=Depends(verify_jwt)):
     "/api/resume/save",
     tags=["AI 자기소개서"],
     summary="자기소개서 저장",
-    description="완성된 자기소개서를 DB에 저장합니다. 저장된 content는 JSON 문자열로 저장되며, resume_category와 제목도 함께 저장됩니다.",
+    description="완성된 자기소개서를 DB에 저장합니다. 저장된 content는 JSON 문자열로 저장되며, resume_category(GENERAL, TECH, CAREER, ACADEMIC)와 제목도 함께 저장됩니다.",
     response_description="저장 결과 메시지 및 생성된 resume_id",
     responses={
         200: {
@@ -418,11 +418,11 @@ def save_resume(
 
 
 @router.get(
-    "/api/resume/user/{userId}",
+    "/api/resume/user",
     tags=["AI 자기소개서"],
     response_model=list[ResumeResult],
     summary="사용자의 자기소개서 목록 조회",
-    description="특정 user_id에 해당하는 사용자가 저장한 자기소개서 리스트를 조회합니다. 각 자기소개서는 title과 sections(JSON 파싱된 dict 형태)로 반환됩니다.",
+    description="accessToken 기반 사용자 인증을 통해 사용자가 저장한 자기소개서 리스트를 조회합니다. 각 자기소개서는 title과 sections(JSON 파싱된 dict 형태)로 반환됩니다.",
     response_description="자기소개서 목록",
     responses={
         200: {
@@ -438,6 +438,8 @@ def save_resume(
                                 "입사포부": "...",
                                 "강점약점": "...",
                                 "프로젝트경험": "...",
+                                "created_at": "2025-05-01T12:00:00",
+                                "updated_at": "2025-05-01T13:00:00",
                             },
                         }
                     ]
@@ -455,9 +457,11 @@ def save_resume(
     },
 )
 def get_user_resumes(
-    userId: int, db: Session = Depends(get_db), token_data=Depends(verify_jwt)
+    db: Session = Depends(get_db),
+    token_data=Depends(verify_jwt),
 ):
-    return get_resumes_by_user_id(db, userId)
+    user_id = token_data["userId"]
+    return get_resumes_by_user_id(db, user_id)
 
 
 @router.get("/ping")
