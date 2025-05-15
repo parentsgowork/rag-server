@@ -195,7 +195,6 @@ def education_search(
 def bookmark_education(
     data: EducationBookmarkRequest = Body(
         example={
-            "user_id": 1,
             "bookmarks": [
                 {
                     "title": "교육1",
@@ -211,7 +210,8 @@ def bookmark_education(
     db: Session = Depends(get_db),
     token_data=Depends(verify_jwt),
 ):
-    return save_bookmarked_education(data, db)
+    user_id = token_data["userId"]
+    return save_bookmarked_education(user_id, data, db)
 
 
 @router.post(

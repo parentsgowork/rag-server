@@ -28,5 +28,4 @@ class EducationItem(BaseModel):
 
 
 class EducationBookmarkRequest(BaseModel):
-    user_id: int
     bookmarks: List[EducationItem]
