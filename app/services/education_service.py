@@ -50,9 +50,11 @@ def parse_education_xml(xml_data, category):
     return results
 
 
-def save_bookmarked_education(data: EducationBookmarkRequest, db: Session):
+def save_bookmarked_education(
+    user_id: int, data: EducationBookmarkRequest, db: Session
+):
     for item in data.bookmarks:
-        edu = EducationInfoDB(user_id=data.user_id, title=item.title, url=item.url)
+        edu = EducationInfoDB(user_id=user_id, title=item.title, url=item.url)
         db.add(edu)
     db.commit()
     return {"message": "교육 정보 북마크 성공."}

@@ -139,10 +139,10 @@ def get_resume(session_id: str):
     }
 
 
-def save_resume_to_db(db: Session, data: ResumeSaveRequest):
+def save_resume_to_db(user_id: int, db: Session, data: ResumeSaveRequest):
     content_json_str = json.dumps(data.sections, ensure_ascii=False)
     resume = Resume(
-        user_id=data.user_id,
+        user_id=user_id,
         title=data.title,
         content=content_json_str,
         resume_category=data.resume_category,

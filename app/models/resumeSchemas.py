@@ -37,7 +37,6 @@ class ResumeResult(BaseModel):
 
 
 class ResumeSaveRequest(BaseModel):
-    user_id: int
     title: str
     sections: Dict[str, str]
     resume_category: ResumeCategory
