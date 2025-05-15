@@ -1,3 +1,4 @@
+import json
 import requests
 import xml.etree.ElementTree as ET
 from sqlalchemy.orm import Session
@@ -5,6 +6,9 @@ from app.db_models.user import User
 from app.core.config import settings
 from app.models.jobSchemas import JobRecommendation
 from openai import OpenAI
+from difflib import SequenceMatcher
+from app.utils.field_ailias_map import SIMILAR_JOB_MAP
+
 
 REGION_KR_MAP = {
     "SEOUL": "서울",
@@ -16,13 +20,9 @@ REGION_KR_MAP = {
     "CHUNGBUK": "충북",
 }
 
-EDU_CODE_MAP = {
-    "HIGH_SCHOOL": "J00106",
-    "ASSOCIATE": "J00108",
-    "BACHELOR": "J00110",
-    "MASTER": "J00114",
-    "DOCTOR": "J00114",
-}
+
+def is_similar(a: str, b: str) -> bool:
+    return SequenceMatcher(None, a, b).ratio() > 0.3
 
 
 def get_career_code(career: int):
@@ -33,52 +33,84 @@ def get_career_code(career: int):
     return "J01300"
 
 
-def select_top_jobs_by_gpt(user, jobs: list[dict]) -> list[dict]:
-    """GPT를 통해 사용자에게 가장 적합한 상위 3개 공고를 선택"""
+def check_similarity_and_filter(root, job_keyword, user_region_kr, job_aliases):
+    filtered_jobs = []
+
+    print("===== 포함 기반 매칭 필터링 시작 =====")
+    for row in root.findall(".//row"):
+        title = row.findtext("JO_SJ", "").strip()
+        jobcode = row.findtext("JOBCODE_NM", "").strip()
+        region = row.findtext("WORK_PARAR_BASS_ADRES_CN", "").strip()
+
+        # alias가 title 또는 jobcode 중 하나에 포함되면 True
+        keyword_included = any(
+            alias in title or alias in jobcode for alias in job_aliases
+        )
+
+        region_match = user_region_kr in region or is_similar(user_region_kr, region)
+
+        if keyword_included and region_match:
+            job_dict = {child.tag: child.text for child in row}
+            filtered_jobs.append(job_dict)
+            print(f"매칭된 공고: {title} | {jobcode} | {region}")
+        # else:
+        # print(f"제외된 공고: {title} | {jobcode} | {region}")
+
+    print(f"최종 필터링 결과: {len(filtered_jobs)}건")
+    return filtered_jobs
+
+
+def select_top_jobs_by_gpt_and_descriptions(user, jobs: list[dict]) -> list[dict]:
     prompt = (
-        f"사용자 정보:\n"
+        f"당신은 취업 도우미입니다. 아래는 사용자의 기본 정보와 공고 리스트입니다.\n\n"
+        f"[사용자 정보]\n"
         f"- 직무: {user.job}\n"
-        f"- 지역: {REGION_KR_MAP.get(user.region.name, '')}\n"
-        f"- 학력: {user.final_edu.name}\n"
+        f"- 지역: {REGION_KR_MAP.get(user.region, '')}\n"
+        f"- 학력: {user.final_edu.value}\n"
         f"- 경력: {user.career}년\n\n"
-        f"아래는 채용 공고 목록입니다. 사용자에게 가장 적합한 3개 공고를 골라 JSON 배열 형태로 반환해주세요. "
-        f"각 항목은 'JO_REGIST_NO'만 포함하고, 주관적인 판단 없이 정보 기반으로 판단해주세요.\n\n"
+        f"[지침]\n"
+        f"1. 사용자에게 가장 적합한 공고 3개만 선택하세요.\n"
+        f"2. 각 공고마다 직무 특징을 1~2문장으로 요약한 'description'을 작성해주세요.\n"
+        f"3. 아래 형식처럼 JSON 배열로 반환하세요:\n"
+        f'[{{"jo_regist_no": "공고번호", "description": "요약 설명"}}]\n\n'
+        f"[공고 목록]\n"
     )
 
     for job in jobs:
-        prompt += f"- 공고번호: {job['JO_REGIST_NO']}, 직무: {job['JO_SJ']}, 지역: {job['WORK_PARAR_BASS_ADRES_CN']}, 경력조건: {job['CAREER_CND_NM']}, 학력조건: {job['ACDMCR_NM']}\n"
-
-    prompt += '\n결과 예시:\n["K12345", "K23456", "K34567"]'
-
-    client = OpenAI(api_key=settings.OPENAI_API_KEY)
-    response = client.chat.completions.create(
-        model="gpt-4",
-        messages=[{"role": "user", "content": prompt}],
-        temperature=0,
-    )
+        prompt += (
+            f"- 공고번호: {job['JO_REGIST_NO']}, 회사: {job['CMPNY_NM']}, 직무명: {job['JOBCODE_NM']}, 제목: {job['JO_SJ']}\n"
+            f"  내용: {job.get('DTY_CN', '').strip()[:300]}...\n"
+        )
 
     try:
-        selected_ids = eval(response.choices[0].message.content.strip())
-        return [job for job in jobs if job["JO_REGIST_NO"] in selected_ids]
-    except Exception:
+        client = OpenAI(api_key=settings.OPENAI_API_KEY)
+        response = client.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.3,
+        )
+
+        raw = response.choices[0].message.content.strip()
+        parsed = json.loads(raw)
+
+        selected_jobs = []
+        for item in parsed:
+            job = next(
+                (j for j in jobs if j["JO_REGIST_NO"] == item["jo_regist_no"]), None
+            )
+            if job:
+                job["description"] = (
+                    item.get("description") or job.get("DTY_CN", "")[:200]
+                )
+                selected_jobs.append(job)
+
+        return selected_jobs
+
+    except Exception as e:
+        print(f"GPT 오류 발생 (description 포함): {e}")
+        for j in jobs[:3]:
+            j["description"] = j.get("DTY_CN", "")[:200]
         return jobs[:3]
-
-
-def generate_description_gpt(job_title, company_name, job_content, user_job):
-    prompt = (
-        f"사용자의 관심 직무는 '{user_job}'입니다. "
-        f"다음은 {company_name}의 '{job_title}' 직무에 대한 상세 설명입니다:\n"
-        f"{job_content}\n\n"
-        f"이 정보를 바탕으로 우대사항과 직무의 특징을 요약해 주세요. 감정이나 판단 없이 설명만 해주세요."
-    )
-
-    client = OpenAI(api_key=settings.OPENAI_API_KEY)
-    response = client.chat.completions.create(
-        model="gpt-4",
-        messages=[{"role": "user", "content": prompt}],
-        temperature=0.7,
-    )
-    return response.choices[0].message.content.strip()
 
 
 def recommend_jobs(user_id: int, db: Session) -> list[JobRecommendation]:
@@ -86,48 +118,38 @@ def recommend_jobs(user_id: int, db: Session) -> list[JobRecommendation]:
     if not user:
         return []
 
-    user_region_kr = REGION_KR_MAP.get(user.region.name, "")
+    user_region_kr = REGION_KR_MAP.get(user.region, "")
     job_keyword = user.job.strip()
+    job_aliases = SIMILAR_JOB_MAP.get(job_keyword, [job_keyword])
 
-    url = f"http://openapi.seoul.go.kr:8088/{settings.seoul_openapi_key}/xml/GetJobInfo/1/200/"
+    print(f"User job: {user.job}, region: {user.region}")
+    print(f"Region mapped: {user_region_kr}")
+
+    url = f"http://openapi.seoul.go.kr:8088/{settings.seoul_openapi_key}/xml/GetJobInfo/1/1000/"
     response = requests.get(url)
     if response.status_code != 200:
         return []
 
     root = ET.fromstring(response.content)
-    filtered_jobs = []
+    filtered_jobs = check_similarity_and_filter(
+        root, job_keyword, user_region_kr, job_aliases
+    )
 
-    for row in root.findall(".//row"):
-        title = row.findtext("JO_SJ", "").strip()
-        if job_keyword not in title:
-            continue
+    if not filtered_jobs:
+        return []
 
-        region_text = row.findtext("WORK_PARAR_BASS_ADRES_CN", "")
-        if user_region_kr not in region_text:
-            continue
-
-        job_dict = {child.tag: child.text for child in row}
-        filtered_jobs.append(job_dict)
-
-    # GPT가 최적의 공고 3개 선택
-    top_jobs = select_top_jobs_by_gpt(user, filtered_jobs)
+    filtered_jobs = filtered_jobs[:5]  # GPT에 넘길 후보 5개 제한
+    top_jobs = select_top_jobs_by_gpt_and_descriptions(user, filtered_jobs)
 
     recommendations = []
     for job in top_jobs:
-        description = generate_description_gpt(
-            job_title=job.get("JO_SJ", ""),
-            company_name=job.get("CMPNY_NM", ""),
-            job_content=job.get("DTY_CN", ""),
-            user_job=user.job.strip(),
-        )
-
         recommendations.append(
             JobRecommendation(
                 jo_reqst_no=job.get("JO_REQST_NO", ""),
                 jo_regist_no=job.get("JO_REGIST_NO", ""),
                 company_name=job.get("CMPNY_NM", ""),
                 job_title=job.get("JO_SJ", ""),
-                description=description,
+                description=job.get("description", "설명을 불러올 수 없습니다."),
                 deadline=job.get("RCEPT_CLOS_NM", ""),
                 location=job.get("WORK_PARAR_BASS_ADRES_CN", ""),
                 pay=job.get("HOPE_WAGE", ""),
