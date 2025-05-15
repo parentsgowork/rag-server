@@ -55,7 +55,7 @@ router = APIRouter()
     tags=["사용자 맞춤 구직 추천"],
     response_model=list[JobRecommendation],
     summary="사용자 맞춤 구직 추천",
-    description="user_id에 기반하여 서울시 구인공고 중 사용자 조건에 맞는 구직 정보를 추천하고, 각 항목에 대해 GPT 기반 설명을 포함하여 반환합니다.",
+    description="accessToken 기반 인증을 통해 서울시 구인공고 중 사용자 조건에 맞는 구직 정보를 추천하고, 각 항목에 대해 GPT 기반 설명을 포함하여 반환합니다.",
     response_description="추천된 구직 리스트",
     responses={
         200: {
@@ -82,10 +82,10 @@ router = APIRouter()
     },
 )
 def recommend_job_for_user(
-    user_id: int,
     db: Session = Depends(get_db),
     token_data=Depends(verify_jwt),
 ):
+    user_id = token_data["userId"]
     return recommend_jobs(user_id, db)
 
 
